@@ -391,7 +391,7 @@ class DatabaseManager {
         units = ?, theme = ?, updated_at = ?
       WHERE id = ?
     `, [
-      user.email, user.name, user.dateOfBirth.toISOString(),
+      user.email, user.name, user.dateOfBirth instanceof Date ? user.dateOfBirth.toISOString() : user.dateOfBirth,
       user.gender, user.height, user.currentWeight, user.activityLevel,
       user.goals.goalType, user.goals.targetWeight ?? null, user.goals.weeklyWeightChange ?? null,
       user.goals.calorieGoal, user.goals.macroRatios.protein,

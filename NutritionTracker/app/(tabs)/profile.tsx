@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '../../src/components/ui/ThemeProvider';
 import { useUserStore, useSettingsStore, useWeightStore } from '../../src/stores';
 import { NutritionCalculator } from '../../src/utils/calculations';
+import { ActivityLevel } from '../../src/types';
 
 interface SettingItemProps {
   icon: React.ComponentProps<typeof FontAwesome>['name'];
@@ -103,6 +104,8 @@ export default function ProfileScreen() {
 
   const [isWeightGoalModalVisible, setWeightGoalModalVisible] = useState(false);
   const [newTargetWeight, setNewTargetWeight] = useState('');
+  const [isActivityLevelModalVisible, setActivityLevelModalVisible] = useState(false);
+  const [selectedActivityLevel, setSelectedActivityLevel] = useState<ActivityLevel | null>(null);
 
 
   const handleThemeChange = () => {
@@ -130,6 +133,22 @@ export default function ProfileScreen() {
     console.log('Edit goals');
   };
 
+  const handleActivityLevelPress = () => {
+    setSelectedActivityLevel(user?.activityLevel || 'moderate');
+    setActivityLevelModalVisible(true);
+  };
+
+  const handleSaveActivityLevel = async () => {
+    if (!user || !selectedActivityLevel) return;
+
+    await updateUserProfile({
+      activityLevel: selectedActivityLevel,
+    });
+
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setActivityLevelModalVisible(false);
+  };
+
   const handleWeightGoalPress = () => {
     const currentTarget = units === 'imperial'
       ? NutritionCalculator.convertWeight(user?.goals?.targetWeight || 0, 'kg', 'lbs')
@@ -152,7 +171,6 @@ export default function ProfileScreen() {
       : targetWeightNum;
     
     await updateUserProfile({ 
-      ...user, 
       goals: { ...user.goals, targetWeight: targetWeightInKg } 
     });
 
@@ -349,7 +367,7 @@ export default function ProfileScreen() {
             icon="heart"
             title="Activity Level"
             value={(user.activityLevel || 'moderate').replace('_', ' ')}
-            onPress={handleEditGoals}
+            onPress={handleActivityLevelPress}
           />
         </View>
 
@@ -451,6 +469,41 @@ export default function ProfileScreen() {
                 <Text style={styles.saveButtonText}>Save Goal</Text>
               </Pressable>
               <Pressable style={styles.cancelButton} onPress={() => setWeightGoalModalVisible(false)}>
+                <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+        <Modal
+          visible={isActivityLevelModalVisible}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setActivityLevelModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Select Activity Level</Text>
+              {['sedentary', 'light', 'moderate', 'active', 'very_active'].map((level) => (
+                <Pressable 
+                  key={level} 
+                  style={[
+                    styles.optionButton, 
+                    selectedActivityLevel === level && { backgroundColor: theme.primary }
+                  ]}
+                  onPress={() => setSelectedActivityLevel(level as ActivityLevel)}
+                >
+                  <Text style={[
+                    styles.optionButtonText, 
+                    { color: selectedActivityLevel === level ? '#ffffff' : theme.text }
+                  ]}>
+                    {level.replace('_', ' ')}
+                  </Text>
+                </Pressable>
+              ))}
+              <Pressable style={[styles.saveButton, { backgroundColor: theme.primary, marginTop: 16 }]} onPress={handleSaveActivityLevel}>
+                <Text style={styles.saveButtonText}>Save</Text>
+              </Pressable>
+              <Pressable style={styles.cancelButton} onPress={() => setActivityLevelModalVisible(false)}>
                 <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>Cancel</Text>
               </Pressable>
             </View>
@@ -670,5 +723,17 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 14,
+  },
+  optionButton: {
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  optionButtonText: {
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
 });

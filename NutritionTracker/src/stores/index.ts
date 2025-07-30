@@ -54,7 +54,7 @@ export const useUserStore = create<UserStore>()(
         // This is where you might also update the database
         try {
           await db.initialize();
-          // Example: await db.updateUser(user);
+          await db.updateUser(updatedUser);
         } catch (error) {
           console.error("Failed to update user in DB:", error);
         }
@@ -504,7 +504,7 @@ export const useWeightStore = create<WeightStore>()(
         // Update user's current weight
         const currentUser = useUserStore.getState().user;
         if (currentUser) {
-          await useUserStore.getState().updateUserProfile({ ...currentUser, currentWeight: weight });
+          await useUserStore.getState().updateUserProfile({ currentWeight: weight });
         }
       },
 
