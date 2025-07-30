@@ -145,16 +145,24 @@ export interface WorkoutSession {
 export interface ExerciseSet {
   id: string;
   exerciseId: string;
-  sets?: StrengthSet[]; // for strength training
-  duration?: number; // for cardio (minutes)
-  distance?: number; // for cardio (km)
+  name: string;
+  type: ExerciseCategory;
+  sets: (StrengthSet | CardioSet)[];
   caloriesBurned: number;
 }
 
 export interface StrengthSet {
+  id: string;
   reps: number;
   weight: number; // in kg
   restTime?: number; // seconds
+}
+
+export interface CardioSet {
+  id: string;
+  duration: number; // minutes
+  distance?: number; // km
+  intensity?: 'low' | 'moderate' | 'high';
 }
 
 // Weight tracking

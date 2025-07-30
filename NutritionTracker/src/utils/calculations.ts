@@ -284,16 +284,29 @@ export class DateUtils {
   /**
    * Get today's date in ISO format
    */
-  static getTodayISO(): string {
-    return new Date().toISOString().split('T')[0];
+  static getTodayISO(date?: Date): string {
+    const today = date || new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1; // getMonth() is zero-based
+    const day = today.getDate();
+
+    const monthStr = month < 10 ? `0${month}` : month;
+    const dayStr = day < 10 ? `0${day}` : day;
+
+    return `${year}-${monthStr}-${dayStr}`;
   }
 
   /**
    * Format date for display
    */
   static formatDate(date: Date | string): string {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    return d.toLocaleDateString();
+    // When a string is 'YYYY-MM-DD', it's parsed as UTC. Treat it as local time.
+    const d = date instanceof Date ? date : new Date(date + 'T00:00:00');
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   }
 
   /**
@@ -319,9 +332,14 @@ export class DateUtils {
    * Check if two dates are the same day
    */
   static isSameDay(date1: Date | string, date2: Date | string): boolean {
-    const d1 = typeof date1 === 'string' ? new Date(date1) : date1;
-    const d2 = typeof date2 === 'string' ? new Date(date2) : date2;
+    // When a string is 'YYYY-MM-DD', it's parsed as UTC. Treat it as local time.
+    const d1 = date1 instanceof Date ? date1 : new Date(date1 + 'T00:00:00');
+    const d2 = date2 instanceof Date ? date2 : new Date(date2 + 'T00:00:00');
     
-    return d1.toDateString() === d2.toDateString();
+    return (
+      d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate()
+    );
   }
 }

@@ -9,23 +9,41 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-
 import { useAppTheme } from '../../src/components/ui/ThemeProvider';
 import { useNutritionStore } from '../../src/stores';
 import { FoodItem, ConsumedFood, MealType } from '../../src/types';
+import { foodInputService } from '../../src/services/foodInput';
+
+const INPUT_MODES = [
+  { key: 'voice', label: 'Voice', icon: 'microphone' },
+  { key: 'photo', label: 'Photo', icon: 'camera' },
+  { key: 'text', label: 'Text', icon: 'keyboard-o' },
+];
+
+const PHOTO_OPTIONS = [
+  { key: 'camera', label: 'Camera', icon: 'camera' },
+  { key: 'gallery', label: 'Gallery', icon: 'image' },
+  { key: 'barcode', label: 'Barcode', icon: 'barcode' },
+];
 
 export default function AddFoodScreen() {
   const theme = useAppTheme();
   const { addFoodEntry, addToFavorites, addToRecent } = useNutritionStore();
-  
-  const [searchQuery, setSearchQuery] = useState('');
+
+  const [inputMode, setInputMode] = useState<'voice' | 'photo' | 'text'>('voice');
+  const [photoOption, setPhotoOption] = useState<'camera' | 'gallery' | 'barcode'>('camera');
+  const [voiceTranscribing, setVoiceTranscribing] = useState(false);
+  const [voiceText, setVoiceText] = useState('');
+  const [textInput, setTextInput] = useState('');
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [quantity, setQuantity] = useState('100');
   const [selectedMeal, setSelectedMeal] = useState<MealType>('breakfast');
-  const [isSearching, setIsSearching] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const mealTypes: Array<{ value: MealType; label: string; icon: string }> = [
     { value: 'breakfast', label: 'Breakfast', icon: 'sun-o' },
@@ -34,109 +52,111 @@ export default function AddFoodScreen() {
     { value: 'snack', label: 'Snack', icon: 'apple' },
   ];
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    
-    setIsSearching(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+  // --- Input Handlers ---
+  const handleVoiceInput = async () => {
+    setError(null);
+    setVoiceTranscribing(true);
+    setVoiceText('');
     try {
-      // Simulate food search - in real app, this would call an API
-      const mockResults: FoodItem[] = [
-        {
-          id: '1',
-          name: 'Chicken Breast',
-          brand: 'Organic Valley',
-          category: 'protein',
-          barcode: '123456789',
-          imageUrl: undefined,
-          isCustom: false,
-          nutritionPer100g: {
-            calories: 165,
-            protein: 31,
-            carbs: 0,
-            fat: 3.6,
-            fiber: 0,
-            sugar: 0,
-            sodium: 74,
-            cholesterol: 85,
-          },
-          servingSizes: [
-            { id: '1', name: '1 breast (174g)', weight: 174, unit: 'g' },
-            { id: '2', name: '1 cup diced (140g)', weight: 140, unit: 'g' },
-            { id: '3', name: '100g', weight: 100, unit: 'g' },
-          ],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          id: '2',
-          name: 'Brown Rice',
-          brand: 'Uncle Ben\'s',
-          category: 'grain',
-          barcode: '987654321',
-          imageUrl: undefined,
-          isCustom: false,
-          nutritionPer100g: {
-            calories: 111,
-            protein: 2.6,
-            carbs: 23,
-            fat: 0.9,
-            fiber: 1.8,
-            sugar: 0.4,
-            sodium: 5,
-            cholesterol: 0,
-          },
-          servingSizes: [
-            { id: '4', name: '1 cup cooked (195g)', weight: 195, unit: 'g' },
-            { id: '5', name: '1/2 cup cooked (98g)', weight: 98, unit: 'g' },
-            { id: '6', name: '100g', weight: 100, unit: 'g' },
-          ],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-      
-      // Filter results based on search query
-      const filteredResults = mockResults.filter(food =>
-        food.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        food.brand?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      
-      // For now, just select the first result
-      if (filteredResults.length > 0) {
-        setSelectedFood(filteredResults[0]);
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to search for food');
-    } finally {
-      setIsSearching(false);
+      await foodInputService.startVoiceRecording();
+      // Show UI for recording, then stop after user action
+    } catch (e) {
+      setError('Could not start recording');
+      setVoiceTranscribing(false);
     }
   };
-
-  const handleScanBarcode = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('Barcode Scanner', 'Barcode scanning feature coming soon!');
+  const handleStopVoiceInput = async () => {
+    setError(null);
+    setVoiceTranscribing(false);
+    setIsLoading(true);
+    try {
+      const result = await foodInputService.stopVoiceRecording();
+      if (result.success && result.text) {
+        setVoiceText(result.text);
+        await handleProcessInput('voice', result.text);
+      } else {
+        setError(result.error || 'Voice transcription failed');
+      }
+    } catch (e) {
+      setError('Voice transcription failed');
+    }
+    setIsLoading(false);
+  };
+  const handlePhotoInput = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      let result;
+      if (photoOption === 'camera') {
+        result = await foodInputService.captureFromCamera();
+      } else if (photoOption === 'gallery') {
+        result = await foodInputService.pickFromGallery();
+      } else if (photoOption === 'barcode') {
+        result = await foodInputService.scanBarcode();
+      }
+      if (result && result.success && result.foodItem) {
+        setSelectedFood(result.foodItem);
+      } else {
+        setError(result?.error || 'Photo input failed');
+      }
+    } catch (e) {
+      setError('Photo input failed');
+    }
+    setIsLoading(false);
+  };
+  const handleTextInput = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await foodInputService.processTextInput(textInput);
+      if (result.success && result.foodItem) {
+        setSelectedFood(result.foodItem);
+      } else {
+        setError(result.error || 'Text input failed');
+      }
+    } catch (e) {
+      setError('Text input failed');
+    }
+    setIsLoading(false);
+  };
+  const handleProcessInput = async (mode: string, content: string) => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      let result;
+      if (mode === 'voice') {
+        result = await foodInputService.processTextInput(content);
+      } else if (mode === 'text') {
+        result = await foodInputService.processTextInput(content);
+      }
+      if (result && result.success && result.foodItem) {
+        setSelectedFood(result.foodItem);
+      } else {
+        setError(result?.error || 'Input failed');
+      }
+    } catch (e) {
+      setError('Input failed');
+    }
+    setIsLoading(false);
   };
 
+  // --- Add Food Logic ---
   const handleAddFood = async () => {
     if (!selectedFood || !quantity) {
       Alert.alert('Error', 'Please select a food and enter quantity');
       return;
     }
-
     const quantityNum = parseFloat(quantity);
     if (isNaN(quantityNum) || quantityNum <= 0) {
       Alert.alert('Error', 'Please enter a valid quantity');
       return;
     }
-
     try {
       const consumedFood: ConsumedFood = {
         id: `consumed-${Date.now()}`,
         foodItem: selectedFood,
         quantity: quantityNum,
-        servingSize: selectedFood.servingSizes[0], // Default to first serving size
+        servingSize: selectedFood.servingSizes[0],
         nutritionConsumed: {
           calories: Math.round((selectedFood.nutritionPer100g.calories * quantityNum) / 100),
           protein: Math.round((selectedFood.nutritionPer100g.protein * quantityNum) / 100),
@@ -148,32 +168,22 @@ export default function AddFoodScreen() {
           cholesterol: Math.round((selectedFood.nutritionPer100g.cholesterol * quantityNum) / 100),
         },
       };
-
       await addFoodEntry(selectedMeal, consumedFood);
       addToRecent(selectedFood);
-      
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       Alert.alert('Success', `${selectedFood.name} added to ${selectedMeal}!`);
-      
-      // Reset form
       setSelectedFood(null);
       setQuantity('100');
-      setSearchQuery('');
+      setVoiceText('');
+      setTextInput('');
     } catch (error) {
       Alert.alert('Error', 'Failed to add food');
     }
   };
 
-  const handleAddToFavorites = () => {
-    if (!selectedFood) return;
-    
-    addToFavorites(selectedFood);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Success', `${selectedFood.name} added to favorites!`);
-  };
-
+  // --- UI ---
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: theme.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -181,63 +191,124 @@ export default function AddFoodScreen() {
         {/* Header */}
         <View style={styles.header}>
           <FontAwesome name="plus-circle" size={48} color={theme.primary} />
-          <Text style={[styles.title, { color: theme.text }]}>
-            Add Food
-          </Text>
-          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Search, scan, or manually add food to your daily log
-          </Text>
+          <Text style={[styles.title, { color: theme.text }]}>Add Food</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Snap, speak, scan, or type to add food</Text>
         </View>
 
-        {/* Search Section */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Search Food
-          </Text>
-          
-          <View style={styles.searchContainer}>
-            <View style={[styles.searchInput, { backgroundColor: theme.surface }]}>
-              <FontAwesome name="search" size={16} color={theme.textSecondary} />
-              <TextInput
-                style={[styles.input, { color: theme.text }]}
-                placeholder="Search for food..."
-                placeholderTextColor={theme.textSecondary}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                onSubmitEditing={handleSearch}
-              />
-            </View>
-            
+        {/* Input Mode Switcher */}
+        <View style={styles.inputModeRow}>
+          {INPUT_MODES.map((mode) => (
             <Pressable
-              style={[styles.searchButton, { backgroundColor: theme.primary }]}
-              onPress={handleSearch}
-              disabled={isSearching}
+              key={mode.key}
+              style={[
+                styles.inputModeButton,
+                { backgroundColor: theme.surface },
+                inputMode === mode.key && { backgroundColor: theme.primary }
+              ]}
+              onPress={() => setInputMode(mode.key as any)}
             >
               <FontAwesome 
-                name={isSearching ? 'spinner' : 'search'} 
-                size={16} 
-                color="#ffffff" 
+                name={mode.icon as any} 
+                size={20} 
+                color={inputMode === mode.key ? '#fff' : theme.textSecondary} 
               />
+              <Text style={[
+                styles.inputModeText,
+                { color: inputMode === mode.key ? '#fff' : theme.textSecondary }
+              ]}>
+                {mode.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {/* Input UI */}
+        {inputMode === 'voice' && (
+          <View style={[styles.inputSection, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.inputLabel, { color: theme.text }]}>Voice Input</Text>
+            {voiceTranscribing ? (
+              <Pressable style={[styles.voiceButton, { backgroundColor: theme.error }]} onPress={handleStopVoiceInput}>
+                <FontAwesome name="stop" size={32} color="#fff" />
+                <Text style={styles.voiceButtonText}>Stop Recording</Text>
+              </Pressable>
+            ) : (
+              <Pressable style={[styles.voiceButton, { backgroundColor: theme.primary }]} onPress={handleVoiceInput}>
+                <FontAwesome name="microphone" size={32} color="#fff" />
+                <Text style={styles.voiceButtonText}>Start Recording</Text>
+              </Pressable>
+            )}
+            {voiceText ? (
+              <Text style={[styles.voiceText, { color: theme.textSecondary }]}>{voiceText}</Text>
+            ) : null}
+          </View>
+        )}
+        {inputMode === 'photo' && (
+          <View style={[styles.inputSection, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.inputLabel, { color: theme.text }]}>Photo Input</Text>
+            
+            {/* Photo Options */}
+            <View style={styles.photoOptionsRow}>
+              {PHOTO_OPTIONS.map((option) => (
+                <Pressable
+                  key={option.key}
+                  style={[
+                    styles.photoOptionButton,
+                    { backgroundColor: theme.background },
+                    photoOption === option.key && { backgroundColor: theme.primary }
+                  ]}
+                  onPress={() => setPhotoOption(option.key as any)}
+                >
+                  <FontAwesome 
+                    name={option.icon as any} 
+                    size={20} 
+                    color={photoOption === option.key ? '#fff' : theme.textSecondary} 
+                  />
+                  <Text style={[
+                    styles.photoOptionText,
+                    { color: photoOption === option.key ? '#fff' : theme.textSecondary }
+                  ]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            
+            {/* Photo Action Button */}
+            <Pressable style={[styles.photoButton, { backgroundColor: theme.primary }]} onPress={handlePhotoInput}>
+              <FontAwesome name={photoOption === 'camera' ? 'camera' : photoOption === 'gallery' ? 'image' : 'barcode'} size={24} color="#fff" />
+              <Text style={styles.photoButtonText}>
+                {photoOption === 'camera' ? 'Take Photo' : photoOption === 'gallery' ? 'Pick Image' : 'Scan Barcode'}
+              </Text>
             </Pressable>
           </View>
+        )}
+        {inputMode === 'text' && (
+          <View style={[styles.inputSection, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.inputLabel, { color: theme.text }]}>Text Input</Text>
+            <TextInput
+              style={[styles.textInput, { color: theme.text, backgroundColor: theme.background }]}
+              placeholder="e.g. 2 eggs and toast"
+              placeholderTextColor={theme.textSecondary}
+              value={textInput}
+              onChangeText={setTextInput}
+              onSubmitEditing={handleTextInput}
+              returnKeyType="done"
+            />
+            <Pressable style={[styles.textButton, { backgroundColor: theme.primary }]} onPress={handleTextInput}>
+              <FontAwesome name="send" size={20} color="#fff" />
+              <Text style={styles.textButtonText}>Submit</Text>
+            </Pressable>
+          </View>
+        )}
 
-          <Pressable
-            style={[styles.scanButton, { backgroundColor: theme.surface }]}
-            onPress={handleScanBarcode}
-          >
-            <FontAwesome name="barcode" size={20} color={theme.primary} />
-            <Text style={[styles.scanButtonText, { color: theme.text }]}>
-              Scan Barcode
-            </Text>
-          </Pressable>
-        </View>
+        {/* Loading/Error */}
+        {isLoading && <ActivityIndicator size="large" color={theme.primary} style={{ marginVertical: 16 }} />}
+        {error && <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>}
 
         {/* Selected Food */}
         {selectedFood && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              Selected Food
-            </Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Selected Food</Text>
             
             <View style={[styles.foodCard, { backgroundColor: theme.surface }]}>
               <View style={styles.foodInfo}>
@@ -256,7 +327,11 @@ export default function AddFoodScreen() {
               
               <Pressable
                 style={[styles.favoriteButton, { backgroundColor: theme.primary }]}
-                onPress={handleAddToFavorites}
+                onPress={() => {
+                  // This button is for favorites, but the input modes handle adding to log
+                  // For now, it's a placeholder.
+                  Alert.alert('Info', 'This button is for favorites, not adding to log.');
+                }}
               >
                 <FontAwesome name="heart" size={16} color="#ffffff" />
               </Pressable>
@@ -330,8 +405,9 @@ export default function AddFoodScreen() {
                 key={item}
                 style={[styles.quickAddButton, { backgroundColor: theme.surface }]}
                 onPress={() => {
-                  setSearchQuery(item);
-                  handleSearch();
+                  setTextInput(item);
+                  setInputMode('text');
+                  handleTextInput();
                 }}
               >
                 <FontAwesome name="plus" size={16} color={theme.primary} />
@@ -377,42 +453,115 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 16,
   },
-  searchContainer: {
+  inputModeRow: {
     flexDirection: 'row',
-    marginBottom: 16,
+    justifyContent: 'space-around',
+    marginBottom: 20,
+    paddingHorizontal: 10,
   },
-  searchInput: {
-    flex: 1,
+  inputModeButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 12,
-    marginRight: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
-  input: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 16,
+  inputModeText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: '600',
   },
-  searchButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
+  inputSection: {
+    marginBottom: 20,
+    padding: 20,
+    borderRadius: 16,
+  },
+  inputLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  voiceButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    borderRadius: 16,
+    marginBottom: 12,
   },
-  scanButton: {
+  voiceButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  voiceText: {
+    fontSize: 14,
+    marginTop: 10,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  photoOptionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+  },
+  photoOptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  photoOptionText: {
+    marginLeft: 6,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  photoButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 16,
   },
-  scanButtonText: {
+  photoButtonText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 12,
+  },
+  textInput: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    fontSize: 16,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: 12,
+  },
+  textButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 16,
+  },
+  textButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  errorText: {
+    textAlign: 'center',
+    marginTop: 10,
+    fontSize: 14,
   },
   foodCard: {
     flexDirection: 'row',

@@ -383,6 +383,7 @@ interface WorkoutStore {
   startWorkout: () => void;
   endWorkout: (workout: Omit<WorkoutSession, 'id'>) => Promise<void>;
   addWorkout: (workout: WorkoutSession) => void;
+  deleteWorkout: (workoutId: string) => void;
   getWorkoutsForDate: (date: string) => WorkoutSession[];
   setLoading: (loading: boolean) => void;
 }
@@ -435,13 +436,18 @@ export const useWorkoutStore = create<WorkoutStore>()(
 
       addWorkout: (workout) => {
         const { workouts } = get();
-        set({ workouts: [...workouts, workout] });
+        set({ workouts: [workout, ...workouts] });
+      },
+
+      deleteWorkout: (workoutId) => {
+        const { workouts } = get();
+        set({ workouts: workouts.filter((w) => w.id !== workoutId) });
       },
 
       getWorkoutsForDate: (date) => {
         const { workouts } = get();
         return workouts.filter(w => 
-          DateUtils.isSameDay(w.date, new Date(date))
+          DateUtils.isSameDay(w.date, date)
         );
       },
 

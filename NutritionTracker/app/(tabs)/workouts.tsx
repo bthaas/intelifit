@@ -76,9 +76,10 @@ const calculateCaloriesBurned = (
 interface WorkoutCardProps {
   workout: WorkoutSession;
   onPress: () => void;
+  onDelete: () => void;
 }
 
-const WorkoutCard: React.FC<WorkoutCardProps> = ({ workout, onPress }) => {
+const WorkoutCard: React.FC<WorkoutCardProps> = ({ workout, onPress, onDelete }) => {
   const theme = useAppTheme();
 
   return (
@@ -94,6 +95,9 @@ const WorkoutCard: React.FC<WorkoutCardProps> = ({ workout, onPress }) => {
         <Text style={[styles.workoutCalories, { color: theme.textSecondary }]}>
           {workout.caloriesBurned} cal
         </Text>
+        <Pressable onPress={onDelete} style={styles.deleteButton}>
+          <FontAwesome name="trash" size={20} color={theme.error} />
+        </Pressable>
       </View>
       
       <View style={styles.workoutStats}>
@@ -158,7 +162,9 @@ export default function WorkoutsScreen() {
     currentWorkout, 
     loadExercises,
     startWorkout,
+    addWorkout,
     getWorkoutsForDate,
+    deleteWorkout,
   } = useWorkoutStore();
 
   const [selectedDate, setSelectedDate] = useState(DateUtils.getTodayISO());
@@ -227,6 +233,24 @@ export default function WorkoutsScreen() {
     console.log('View workout details:', workout.id);
   };
 
+  const handleDeleteWorkout = (workoutId: string) => {
+    Alert.alert(
+      'Delete Workout',
+      'Are you sure you want to delete this workout? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteWorkout(workoutId);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          },
+        },
+      ]
+    );
+  };
+
   const handleAddCustomWorkout = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowExerciseModal(true);
@@ -250,27 +274,73 @@ export default function WorkoutsScreen() {
       return;
     }
 
-    const userWeight = user?.currentWeight || 70;
+    if (!user) {
+      Alert.alert('Error', 'User profile not found.');
+      return;
+    }
+
+    const userWeight = user.currentWeight || 70;
     const caloriesBurned = calculateCaloriesBurned(
-      selectedExercise.MET, 
-      userWeight, 
-      duration, 
+      selectedExercise.MET,
+      userWeight,
+      duration,
       exerciseIntensity
     );
 
+    const newWorkout: WorkoutSession = {
+      id: `workout-${Date.now()}`,
+      userId: user.id,
+      date: new Date(),
+      exercises: [
+        {
+          id: `ex-${Date.now()}`,
+          exerciseId: selectedExercise.id || selectedExercise.name,
+          name: selectedExercise.name,
+          type: selectedExercise.type,
+          caloriesBurned,
+          sets: [
+            {
+              id: `set-${Date.now()}`,
+              duration,
+              intensity: exerciseIntensity,
+            },
+          ],
+        },
+      ],
+      totalDuration: duration,
+      caloriesBurned,
+    };
+
+    addWorkout(newWorkout);
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     Alert.alert(
-      'Exercise Complete!',
-      `${selectedExercise.name}\nDuration: ${duration} minutes\nIntensity: ${exerciseIntensity}\nCalories burned: ~${caloriesBurned}`,
+      'Workout Logged!',
+      `${selectedExercise.name} for ${duration} minutes has been added to your activity.`,
       [
-        { text: 'OK', onPress: () => {
-          setShowExerciseModal(false);
-          setSelectedExercise(null);
-          setExerciseDuration('30');
-          setExerciseIntensity('moderate');
-        }}
+        {
+          text: 'OK',
+          onPress: () => {
+            setShowExerciseModal(false);
+            setSelectedExercise(null);
+            setExerciseDuration('30');
+            setExerciseIntensity('moderate');
+          },
+        },
       ]
     );
+  };
+
+  const handlePreviousDay = () => {
+    const currentDate = new Date(selectedDate + 'T00:00:00');
+    currentDate.setDate(currentDate.getDate() - 1);
+    setSelectedDate(DateUtils.getTodayISO(currentDate));
+  };
+
+  const handleNextDay = () => {
+    const currentDate = new Date(selectedDate + 'T00:00:00');
+    currentDate.setDate(currentDate.getDate() + 1);
+    setSelectedDate(DateUtils.getTodayISO(currentDate));
   };
 
   if (!user) {
@@ -292,12 +362,15 @@ export default function WorkoutsScreen() {
         {/* Today's Summary */}
         <View style={[styles.summaryCard, { backgroundColor: theme.surface }]}>
           <View style={styles.summaryHeader}>
+            <Pressable onPress={handlePreviousDay} style={styles.navButton}>
+              <FontAwesome name="chevron-left" size={18} color={theme.primary} />
+            </Pressable>
             <Text style={[styles.summaryTitle, { color: theme.text }]}>
-              Today's Activity
-            </Text>
-            <Text style={[styles.summaryDate, { color: theme.textSecondary }]}>
               {DateUtils.formatDate(selectedDate)}
             </Text>
+            <Pressable onPress={handleNextDay} style={styles.navButton}>
+              <FontAwesome name="chevron-right" size={18} color={theme.primary} />
+            </Pressable>
           </View>
           
           <View style={styles.summaryStats}>
@@ -381,6 +454,7 @@ export default function WorkoutsScreen() {
                   key={workout.id}
                   workout={workout}
                   onPress={() => handleWorkoutPress(workout)}
+                  onDelete={() => handleDeleteWorkout(workout.id)}
                 />
               ))
           )}
@@ -658,6 +732,10 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 18,
     fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  navButton: {
+    padding: 8,
   },
   summaryDate: {
     fontSize: 14,
@@ -737,6 +815,10 @@ const styles = StyleSheet.create({
   },
   workoutCalories: {
     fontSize: 14,
+  },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 8,
   },
   workoutStats: {
     flexDirection: 'row',
