@@ -1,5 +1,5 @@
-const tintColorLight = '#2f95dc';
-const tintColorDark = '#fff';
+const tintColorLight = '#00693E'; // Dartmouth Green
+const tintColorDark = '#95C623'; // Yellow Green
 
 export default {
   light: {

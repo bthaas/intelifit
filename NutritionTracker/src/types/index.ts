@@ -228,6 +228,19 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 export type ExerciseCategory = 'cardio' | 'strength' | 'flexibility' | 'sports';
 export type MuscleGroup = 'chest' | 'back' | 'shoulders' | 'arms' | 'legs' | 'abs' | 'glutes';
 
+// FontAwesome icon names for type safety
+export type FontAwesomeIconName = 
+  | 'home' | 'pie-chart' | 'heart' | 'line-chart' | 'user'
+  | 'plus' | 'edit' | 'sun-o' | 'clock-o' | 'moon-o' | 'apple'
+  | 'tint' | 'cutlery' | 'leaf' | 'tree' | 'fire' | 'bolt'
+  | 'target' | 'trending-up' | 'activity' | 'paint-brush' | 'globe'
+  | 'bell' | 'question-circle' | 'shield' | 'file-text' | 'sign-out'
+  | 'balance-scale' | 'play' | 'heart-o' | 'line-chart' | 'fire'
+  | 'target' | 'pie-chart' | 'equals' | 'minus' | 'chevron-right'
+  | 'male' | 'female' | 'sort' | 'map' | 'filter' | 'at' | 'barcode'
+  | 'search' | 'repeat' | 'anchor' | 'bold' | 'link' | 'code'
+  | 'header' | 'table' | 'th' | 'circle' | 'image' | 'meetup';
+
 // API and database types
 export interface ApiResponse<T> {
   success: boolean;

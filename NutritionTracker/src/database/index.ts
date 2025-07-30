@@ -313,7 +313,7 @@ class DatabaseManager {
     `, [
       id, user.email, user.name, user.dateOfBirth.toISOString(),
       user.gender, user.height, user.currentWeight, user.activityLevel,
-      user.goals.goalType, user.goals.targetWeight, user.goals.weeklyWeightChange,
+      user.goals.goalType, user.goals.targetWeight ?? null, user.goals.weeklyWeightChange ?? null,
       user.goals.calorieGoal, user.goals.macroRatios.protein,
       user.goals.macroRatios.carbs, user.goals.macroRatios.fat,
       user.preferences.units, user.preferences.theme, now, now
@@ -391,8 +391,8 @@ class DatabaseManager {
         created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
-      id, food.name, food.brand, food.barcode, food.category,
-      food.imageUrl, food.isCustom ? 1 : 0,
+      id, food.name, food.brand ?? null, food.barcode ?? null, food.category,
+      food.imageUrl ?? null, food.isCustom ? 1 : 0,
       food.nutritionPer100g.calories, food.nutritionPer100g.protein,
       food.nutritionPer100g.carbs, food.nutritionPer100g.fat,
       food.nutritionPer100g.fiber, food.nutritionPer100g.sugar,

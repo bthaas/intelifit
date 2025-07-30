@@ -21,7 +21,7 @@ interface ProgressCardProps {
   current: number;
   goal: number;
   unit: string;
-  icon: string;
+  icon: React.ComponentProps<typeof FontAwesome>['name'];
   color: string;
   showProgress?: boolean;
 }
@@ -275,7 +275,7 @@ export default function ProgressScreen() {
           current={weightProgress}
           goal={100}
           unit="%"
-          icon="target"
+          icon="bullseye"
           color={theme.success}
         />
       )}

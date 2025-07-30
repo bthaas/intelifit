@@ -1,354 +1,349 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
-  ScrollView,
   View,
   Text,
+  TextInput,
   Pressable,
-  RefreshControl,
+  ScrollView,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
-import { Link } from 'expo-router';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { LinearGradient } from 'expo-linear-gradient';
+import { FontAwesome } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { useAppTheme } from '../../src/components/ui/ThemeProvider';
-import { useNutritionStore, useUserStore } from '../../src/stores';
-import { NutritionCalculator, DateUtils } from '../../src/utils/calculations';
-import { MealType, ConsumedFood } from '../../src/types';
+import { useNutritionStore } from '../../src/stores';
+import { FoodItem, ConsumedFood, MealType } from '../../src/types';
 
-interface MacroProgressProps {
-  label: string;
-  current: number;
-  goal: number;
-  color: string;
-  unit: string;
-}
-
-const MacroProgress: React.FC<MacroProgressProps> = ({ 
-  label, current, goal, color, unit 
-}) => {
+export default function AddFoodScreen() {
   const theme = useAppTheme();
-  const progress = Math.min(current / goal, 1);
+  const { addFoodEntry, addToFavorites, addToRecent } = useNutritionStore();
   
-  return (
-    <View style={styles.macroItem}>
-      <Text style={[styles.macroLabel, { color: theme.textSecondary }]}>
-        {label}
-      </Text>
-      <View style={[styles.progressBar, { backgroundColor: theme.border }]}>
-        <View 
-          style={[
-            styles.progressFill, 
-            { backgroundColor: color, width: `${progress * 100}%` }
-          ]} 
-        />
-      </View>
-      <Text style={[styles.macroValue, { color: theme.text }]}>
-        {Math.round(current)}{unit} / {Math.round(goal)}{unit}
-      </Text>
-    </View>
-  );
-};
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
+  const [quantity, setQuantity] = useState('100');
+  const [selectedMeal, setSelectedMeal] = useState<MealType>('breakfast');
+  const [isSearching, setIsSearching] = useState(false);
 
-interface MealSectionProps {
-  mealType: MealType;
-  foods: ConsumedFood[];
-  calories: number;
-  onAddFood: () => void;
-}
+  const mealTypes: Array<{ value: MealType; label: string; icon: string }> = [
+    { value: 'breakfast', label: 'Breakfast', icon: 'sun-o' },
+    { value: 'lunch', label: 'Lunch', icon: 'clock-o' },
+    { value: 'dinner', label: 'Dinner', icon: 'moon-o' },
+    { value: 'snack', label: 'Snack', icon: 'apple' },
+  ];
 
-const MealSection: React.FC<MealSectionProps> = ({ 
-  mealType, foods, calories, onAddFood 
-}) => {
-  const theme = useAppTheme();
-  
-  const mealIcons = {
-    breakfast: 'sun-o',
-    lunch: 'clock-o',
-    dinner: 'moon-o',
-    snack: 'apple',
-  };
-
-  const mealLabels = {
-    breakfast: 'Breakfast',
-    lunch: 'Lunch',
-    dinner: 'Dinner',
-    snack: 'Snacks',
-  };
-
-  return (
-    <View style={[styles.mealSection, { backgroundColor: theme.surface }]}>
-      <View style={styles.mealHeader}>
-        <View style={styles.mealTitleContainer}>
-          <FontAwesome 
-            name={mealIcons[mealType]} 
-            size={20} 
-            color={theme.primary} 
-          />
-          <Text style={[styles.mealTitle, { color: theme.text }]}>
-            {mealLabels[mealType]}
-          </Text>
-          <Text style={[styles.mealCalories, { color: theme.textSecondary }]}>
-            {Math.round(calories)} cal
-          </Text>
-        </View>
-        <Pressable 
-          onPress={onAddFood}
-          style={[styles.addButton, { borderColor: theme.primary }]}
-        >
-          <FontAwesome name="plus" size={16} color={theme.primary} />
-        </Pressable>
-      </View>
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setIsSearching(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    try {
+      // Simulate food search - in real app, this would call an API
+      const mockResults: FoodItem[] = [
+        {
+          id: '1',
+          name: 'Chicken Breast',
+          brand: 'Organic Valley',
+          category: 'protein',
+          barcode: '123456789',
+          imageUrl: undefined,
+          isCustom: false,
+          nutritionPer100g: {
+            calories: 165,
+            protein: 31,
+            carbs: 0,
+            fat: 3.6,
+            fiber: 0,
+            sugar: 0,
+            sodium: 74,
+            cholesterol: 85,
+          },
+          servingSizes: [
+            { id: '1', name: '1 breast (174g)', weight: 174, unit: 'g' },
+            { id: '2', name: '1 cup diced (140g)', weight: 140, unit: 'g' },
+            { id: '3', name: '100g', weight: 100, unit: 'g' },
+          ],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: '2',
+          name: 'Brown Rice',
+          brand: 'Uncle Ben\'s',
+          category: 'grain',
+          barcode: '987654321',
+          imageUrl: undefined,
+          isCustom: false,
+          nutritionPer100g: {
+            calories: 111,
+            protein: 2.6,
+            carbs: 23,
+            fat: 0.9,
+            fiber: 1.8,
+            sugar: 0.4,
+            sodium: 5,
+            cholesterol: 0,
+          },
+          servingSizes: [
+            { id: '4', name: '1 cup cooked (195g)', weight: 195, unit: 'g' },
+            { id: '5', name: '1/2 cup cooked (98g)', weight: 98, unit: 'g' },
+            { id: '6', name: '100g', weight: 100, unit: 'g' },
+          ],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
       
-      {foods.length === 0 ? (
-        <Pressable onPress={onAddFood} style={styles.emptyMeal}>
-          <Text style={[styles.emptyMealText, { color: theme.textSecondary }]}>
-            Tap to add food
-          </Text>
-        </Pressable>
-      ) : (
-        <View style={styles.foodList}>
-          {foods.map((food) => (
-            <View key={food.id} style={styles.foodItem}>
-              <View style={styles.foodInfo}>
-                <Text style={[styles.foodName, { color: theme.text }]}>
-                  {food.foodItem.name}
-                </Text>
-                <Text style={[styles.foodDetails, { color: theme.textSecondary }]}>
-                  {food.quantity} {food.servingSize.name} • {Math.round(food.nutritionConsumed.calories)} cal
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-};
-
-export default function TodayScreen() {
-  const theme = useAppTheme();
-  const { user } = useUserStore();
-  const { 
-    dailyEntries, 
-    currentDate, 
-    setCurrentDate, 
-    loadDailyEntry,
-    updateWaterIntake 
-  } = useNutritionStore();
-  
-  const [refreshing, setRefreshing] = useState(false);
-  const [waterGlasses, setWaterGlasses] = useState(0);
-
-  const todayEntry = dailyEntries[currentDate];
-  const totalNutrition = todayEntry?.totalNutrition || {
-    calories: 0, protein: 0, carbs: 0, fat: 0,
-    fiber: 0, sugar: 0, sodium: 0, cholesterol: 0,
-  };
-
-  const calorieGoal = user?.goals.calorieGoal || 2000;
-  const macroGoals = user ? 
-    NutritionCalculator.calculateMacroGoals(calorieGoal, user.goals.macroRatios) :
-    { protein: 150, carbs: 250, fat: 67 };
-
-  const caloriesRemaining = calorieGoal - totalNutrition.calories;
-
-  // Group foods by meal type
-  const mealData = {
-    breakfast: { foods: [] as ConsumedFood[], calories: 0 },
-    lunch: { foods: [] as ConsumedFood[], calories: 0 },
-    dinner: { foods: [] as ConsumedFood[], calories: 0 },
-    snack: { foods: [] as ConsumedFood[], calories: 0 },
-  };
-
-  todayEntry?.meals.forEach(meal => {
-    mealData[meal.mealType].foods = meal.foodItems;
-    mealData[meal.mealType].calories = meal.foodItems.reduce(
-      (sum, food) => sum + food.nutritionConsumed.calories, 0
-    );
-  });
-
-  useEffect(() => {
-    loadDailyEntry(currentDate);
-  }, [currentDate]);
-
-  useEffect(() => {
-    // Initialize water glasses from stored data
-    if (todayEntry?.waterIntake) {
-      setWaterGlasses(Math.round(todayEntry.waterIntake / 250)); // 250ml per glass
+      // Filter results based on search query
+      const filteredResults = mockResults.filter(food =>
+        food.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        food.brand?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      
+      // For now, just select the first result
+      if (filteredResults.length > 0) {
+        setSelectedFood(filteredResults[0]);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to search for food');
+    } finally {
+      setIsSearching(false);
     }
-  }, [todayEntry?.waterIntake]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadDailyEntry(currentDate);
-    setRefreshing(false);
   };
 
-  const handleAddWater = async () => {
+  const handleScanBarcode = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert('Barcode Scanner', 'Barcode scanning feature coming soon!');
+  };
+
+  const handleAddFood = async () => {
+    if (!selectedFood || !quantity) {
+      Alert.alert('Error', 'Please select a food and enter quantity');
+      return;
+    }
+
+    const quantityNum = parseFloat(quantity);
+    if (isNaN(quantityNum) || quantityNum <= 0) {
+      Alert.alert('Error', 'Please enter a valid quantity');
+      return;
+    }
+
+    try {
+      const consumedFood: ConsumedFood = {
+        id: `consumed-${Date.now()}`,
+        foodItem: selectedFood,
+        quantity: quantityNum,
+        servingSize: selectedFood.servingSizes[0], // Default to first serving size
+        nutritionConsumed: {
+          calories: Math.round((selectedFood.nutritionPer100g.calories * quantityNum) / 100),
+          protein: Math.round((selectedFood.nutritionPer100g.protein * quantityNum) / 100),
+          carbs: Math.round((selectedFood.nutritionPer100g.carbs * quantityNum) / 100),
+          fat: Math.round((selectedFood.nutritionPer100g.fat * quantityNum) / 100),
+          fiber: Math.round((selectedFood.nutritionPer100g.fiber * quantityNum) / 100),
+          sugar: Math.round((selectedFood.nutritionPer100g.sugar * quantityNum) / 100),
+          sodium: Math.round((selectedFood.nutritionPer100g.sodium * quantityNum) / 100),
+          cholesterol: Math.round((selectedFood.nutritionPer100g.cholesterol * quantityNum) / 100),
+        },
+      };
+
+      await addFoodEntry(selectedMeal, consumedFood);
+      addToRecent(selectedFood);
+      
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      Alert.alert('Success', `${selectedFood.name} added to ${selectedMeal}!`);
+      
+      // Reset form
+      setSelectedFood(null);
+      setQuantity('100');
+      setSearchQuery('');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add food');
+    }
+  };
+
+  const handleAddToFavorites = () => {
+    if (!selectedFood) return;
+    
+    addToFavorites(selectedFood);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const newGlasses = waterGlasses + 1;
-    setWaterGlasses(newGlasses);
-    await updateWaterIntake(newGlasses * 250);
+    Alert.alert('Success', `${selectedFood.name} added to favorites!`);
   };
-
-  const handleAddFood = (mealType: MealType) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // This would navigate to food search with meal type
-    console.log(`Add food to ${mealType}`);
-  };
-
-  if (!user) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <View style={styles.centered}>
-          <Text style={[styles.welcomeText, { color: theme.text }]}>
-            Welcome to Nutrition Tracker
-          </Text>
-          <Link href="/profile-setup" asChild>
-            <Pressable style={[styles.setupButton, { backgroundColor: theme.primary }]}>
-              <Text style={styles.setupButtonText}>Set up your profile</Text>
-            </Pressable>
-          </Link>
-        </View>
-      </View>
-    );
-  }
 
   return (
-    <ScrollView 
+    <KeyboardAvoidingView 
       style={[styles.container, { backgroundColor: theme.background }]}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Header with date and calories */}
-      <View style={[styles.header, { backgroundColor: theme.surface }]}>
-        <View style={styles.dateContainer}>
-          <Text style={[styles.date, { color: theme.text }]}>
-            {DateUtils.formatDate(currentDate)}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <FontAwesome name="plus-circle" size={48} color={theme.primary} />
+          <Text style={[styles.title, { color: theme.text }]}>
+            Add Food
           </Text>
-          <Text style={[styles.dayOfWeek, { color: theme.textSecondary }]}>
-            {new Date(currentDate).toLocaleDateString('en-US', { weekday: 'long' })}
-          </Text>
-        </View>
-        
-        <View style={styles.calorieContainer}>
-          <Text style={[styles.caloriesRemaining, { color: theme.text }]}>
-            {Math.max(0, caloriesRemaining)}
-          </Text>
-          <Text style={[styles.caloriesLabel, { color: theme.textSecondary }]}>
-            calories remaining
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            Search, scan, or manually add food to your daily log
           </Text>
         </View>
-      </View>
 
-      {/* Calorie progress ring */}
-      <View style={styles.progressRingContainer}>
-        <View style={[styles.progressRing, { borderColor: theme.border }]}>
-          <View style={styles.progressRingInner}>
-            <Text style={[styles.progressRingCalories, { color: theme.text }]}>
-              {Math.round(totalNutrition.calories)}
-            </Text>
-            <Text style={[styles.progressRingGoal, { color: theme.textSecondary }]}>
-              of {calorieGoal}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Macro breakdown */}
-      <View style={[styles.macroContainer, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Macronutrients
-        </Text>
-        <MacroProgress 
-          label="Protein"
-          current={totalNutrition.protein}
-          goal={macroGoals.protein}
-          color="#e74c3c"
-          unit="g"
-        />
-        <MacroProgress 
-          label="Carbs"
-          current={totalNutrition.carbs}
-          goal={macroGoals.carbs}
-          color="#f39c12"
-          unit="g"
-        />
-        <MacroProgress 
-          label="Fat"
-          current={totalNutrition.fat}
-          goal={macroGoals.fat}
-          color="#9b59b6"
-          unit="g"
-        />
-      </View>
-
-      {/* Water intake */}
-      <View style={[styles.waterContainer, { backgroundColor: theme.surface }]}>
-        <View style={styles.waterHeader}>
+        {/* Search Section */}
+        <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Water Intake
+            Search Food
           </Text>
-          <Text style={[styles.waterCount, { color: theme.textSecondary }]}>
-            {waterGlasses} glasses ({waterGlasses * 250}ml)
-          </Text>
-        </View>
-        <View style={styles.waterGlasses}>
-          {Array.from({ length: 8 }, (_, i) => (
+          
+          <View style={styles.searchContainer}>
+            <View style={[styles.searchInput, { backgroundColor: theme.surface }]}>
+              <FontAwesome name="search" size={16} color={theme.textSecondary} />
+              <TextInput
+                style={[styles.input, { color: theme.text }]}
+                placeholder="Search for food..."
+                placeholderTextColor={theme.textSecondary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onSubmitEditing={handleSearch}
+              />
+            </View>
+            
             <Pressable
-              key={i}
-              onPress={i === waterGlasses ? handleAddWater : undefined}
-              style={styles.waterGlass}
+              style={[styles.searchButton, { backgroundColor: theme.primary }]}
+              onPress={handleSearch}
+              disabled={isSearching}
             >
-              <FontAwesome
-                name="tint"
-                size={24}
-                color={i < waterGlasses ? theme.primary : theme.border}
+              <FontAwesome 
+                name={isSearching ? 'spinner' : 'search'} 
+                size={16} 
+                color="#ffffff" 
               />
             </Pressable>
-          ))}
+          </View>
+
+          <Pressable
+            style={[styles.scanButton, { backgroundColor: theme.surface }]}
+            onPress={handleScanBarcode}
+          >
+            <FontAwesome name="barcode" size={20} color={theme.primary} />
+            <Text style={[styles.scanButtonText, { color: theme.text }]}>
+              Scan Barcode
+            </Text>
+          </Pressable>
         </View>
-      </View>
 
-      {/* Meals */}
-      <Text style={[styles.sectionTitle, { color: theme.text, marginHorizontal: 16 }]}>
-        Meals
-      </Text>
-      
-      <MealSection
-        mealType="breakfast"
-        foods={mealData.breakfast.foods}
-        calories={mealData.breakfast.calories}
-        onAddFood={() => handleAddFood('breakfast')}
-      />
-      
-      <MealSection
-        mealType="lunch"
-        foods={mealData.lunch.foods}
-        calories={mealData.lunch.calories}
-        onAddFood={() => handleAddFood('lunch')}
-      />
-      
-      <MealSection
-        mealType="dinner"
-        foods={mealData.dinner.foods}
-        calories={mealData.dinner.calories}
-        onAddFood={() => handleAddFood('dinner')}
-      />
-      
-      <MealSection
-        mealType="snack"
-        foods={mealData.snack.foods}
-        calories={mealData.snack.calories}
-        onAddFood={() => handleAddFood('snack')}
-      />
+        {/* Selected Food */}
+        {selectedFood && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>
+              Selected Food
+            </Text>
+            
+            <View style={[styles.foodCard, { backgroundColor: theme.surface }]}>
+              <View style={styles.foodInfo}>
+                <Text style={[styles.foodName, { color: theme.text }]}>
+                  {selectedFood.name}
+                </Text>
+                {selectedFood.brand && (
+                  <Text style={[styles.foodBrand, { color: theme.textSecondary }]}>
+                    {selectedFood.brand}
+                  </Text>
+                )}
+                <Text style={[styles.foodNutrition, { color: theme.textSecondary }]}>
+                  {selectedFood.nutritionPer100g.calories} cal per 100g
+                </Text>
+              </View>
+              
+              <Pressable
+                style={[styles.favoriteButton, { backgroundColor: theme.primary }]}
+                onPress={handleAddToFavorites}
+              >
+                <FontAwesome name="heart" size={16} color="#ffffff" />
+              </Pressable>
+            </View>
 
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+            {/* Quantity Input */}
+            <View style={styles.quantityContainer}>
+              <Text style={[styles.label, { color: theme.text }]}>Quantity (g)</Text>
+              <TextInput
+                style={[styles.quantityInput, { backgroundColor: theme.surface, color: theme.text }]}
+                value={quantity}
+                onChangeText={setQuantity}
+                keyboardType="numeric"
+                placeholder="100"
+                placeholderTextColor={theme.textSecondary}
+              />
+            </View>
+
+            {/* Meal Selection */}
+            <View style={styles.mealContainer}>
+              <Text style={[styles.label, { color: theme.text }]}>Meal</Text>
+              <View style={styles.mealButtons}>
+                {mealTypes.map((meal) => (
+                  <Pressable
+                    key={meal.value}
+                    style={[
+                      styles.mealButton,
+                      { backgroundColor: theme.surface },
+                      selectedMeal === meal.value && { backgroundColor: theme.primary }
+                    ]}
+                    onPress={() => setSelectedMeal(meal.value)}
+                  >
+                    <FontAwesome 
+                      name={meal.icon as any} 
+                      size={16} 
+                      color={selectedMeal === meal.value ? '#ffffff' : theme.textSecondary} 
+                    />
+                    <Text style={[
+                      styles.mealButtonText,
+                      { color: selectedMeal === meal.value ? '#ffffff' : theme.text }
+                    ]}>
+                      {meal.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* Add Button */}
+            <Pressable
+              style={[styles.addButton, { backgroundColor: theme.primary }]}
+              onPress={handleAddFood}
+            >
+              <FontAwesome name="plus" size={20} color="#ffffff" />
+              <Text style={styles.addButtonText}>
+                Add to {selectedMeal}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Quick Add Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            Quick Add
+          </Text>
+          
+          <View style={styles.quickAddGrid}>
+            {['Water', 'Coffee', 'Apple', 'Banana'].map((item) => (
+              <Pressable
+                key={item}
+                style={[styles.quickAddButton, { backgroundColor: theme.surface }]}
+                onPress={() => {
+                  setSearchQuery(item);
+                  handleSearch();
+                }}
+              >
+                <FontAwesome name="plus" size={16} color={theme.primary} />
+                <Text style={[styles.quickAddText, { color: theme.text }]}>
+                  {item}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -356,198 +351,162 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  scrollContent: {
     padding: 20,
   },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  setupButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  setupButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    marginHorizontal: 16,
+    marginBottom: 30,
   },
-  dateContainer: {
-    flex: 1,
-  },
-  date: {
-    fontSize: 20,
+  title: {
+    fontSize: 28,
     fontWeight: 'bold',
+    marginTop: 12,
+    marginBottom: 8,
   },
-  dayOfWeek: {
-    fontSize: 14,
-    marginTop: 2,
+  subtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
   },
-  calorieContainer: {
-    alignItems: 'flex-end',
-  },
-  caloriesRemaining: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  caloriesLabel: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  progressRingContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  progressRing: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  progressRingInner: {
-    alignItems: 'center',
-  },
-  progressRingCalories: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  progressRingGoal: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  macroContainer: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
+  section: {
+    marginBottom: 30,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  macroItem: {
-    marginBottom: 12,
-  },
-  macroLabel: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  progressBar: {
-    height: 8,
-    borderRadius: 4,
-    marginBottom: 4,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  macroValue: {
-    fontSize: 12,
-  },
-  waterContainer: {
-    marginHorizontal: 16,
     marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
   },
-  waterHeader: {
+  searchContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  waterCount: {
-    fontSize: 14,
-  },
-  waterGlasses: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  waterGlass: {
-    padding: 8,
-  },
-  mealSection: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  mealHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-  },
-  mealTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  searchInput: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginRight: 12,
   },
-  mealTitle: {
+  input: {
+    flex: 1,
+    marginLeft: 12,
     fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-    flex: 1,
   },
-  mealCalories: {
-    fontSize: 14,
-  },
-  addButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
+  searchButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emptyMeal: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  emptyMealText: {
-    fontSize: 14,
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-  foodList: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  foodItem: {
+  scanButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+  },
+  scanButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  foodCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
   },
   foodInfo: {
     flex: 1,
   },
   foodName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  foodBrand: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  foodNutrition: {
+    fontSize: 12,
+  },
+  favoriteButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quantityContainer: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  quantityInput: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    fontSize: 16,
+  },
+  mealContainer: {
+    marginBottom: 20,
+  },
+  mealButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  mealButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    minWidth: 80,
+  },
+  mealButtonText: {
     fontSize: 14,
     fontWeight: '500',
+    marginLeft: 8,
   },
-  foodDetails: {
-    fontSize: 12,
-    marginTop: 2,
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
   },
-  bottomSpacer: {
-    height: 20,
+  addButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
   },
-});
+  quickAddGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  quickAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    minWidth: 100,
+  },
+  quickAddText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+}); 

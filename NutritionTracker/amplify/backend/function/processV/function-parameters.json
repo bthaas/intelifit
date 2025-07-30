@@ -1,0 +1,24 @@
+{
+  "lambdaLayers": [],
+  "secretNames": [
+    "OPENAI_API_KEY"
+  ],
+  "permissions": {
+    "auth": {},
+    "api": {},
+    "storage": {}
+  },
+  "secrets": [
+    "OPENAI_API_KEY"
+  ],
+  "environmentVariableList": [
+    {
+      "cloudFormationParameterName": "cognitoClientId",
+      "environmentVariableName": "COGNITO_CLIENT_ID"
+    },
+    {
+      "cloudFormationParameterName": "cognitoUserPoolId",
+      "environmentVariableName": "COGNITO_USER_POOL_ID"
+    }
+  ]
+}

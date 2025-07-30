@@ -6,6 +6,18 @@ export class NutritionCalculator {
    */
   static calculateBMR(user: UserProfile): number {
     const { gender, currentWeight, height, dateOfBirth } = user;
+    
+    // More robust safety check for dateOfBirth
+    if (!dateOfBirth || !(dateOfBirth instanceof Date) || isNaN(dateOfBirth.getTime())) {
+      // Default age of 25 if no valid date of birth
+      const age = 25;
+      if (gender === 'male') {
+        return 10 * currentWeight + 6.25 * height - 5 * age + 5;
+      } else {
+        return 10 * currentWeight + 6.25 * height - 5 * age - 161;
+      }
+    }
+    
     const age = new Date().getFullYear() - dateOfBirth.getFullYear();
     
     if (gender === 'male') {

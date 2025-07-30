@@ -1,0 +1,8 @@
+{
+  "lambdaLayers": [],
+  "permissions": {
+    "auth": {},
+    "api": {},
+    "storage": {}
+  }
+}

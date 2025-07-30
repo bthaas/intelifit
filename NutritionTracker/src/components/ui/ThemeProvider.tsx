@@ -4,29 +4,29 @@ import { useSettingsStore } from '../../stores';
 import { ThemeColors } from '../../types';
 
 const lightTheme: ThemeColors = {
-  background: '#ffffff',
-  surface: '#f8f9fa',
-  primary: '#4CAF50',
-  secondary: '#81C784',
-  text: '#212529',
-  textSecondary: '#6c757d',
-  border: '#dee2e6',
-  error: '#dc3545',
-  success: '#28a745',
-  warning: '#ffc107',
+  background: '#FFFFFF', // White
+  surface: '#f8f9fa', // Light gray for cards/surfaces
+  primary: '#00693E', // Dartmouth Green
+  secondary: '#95C623', // Yellow Green
+  text: '#000000', // Black
+  textSecondary: '#6c757d', // Gray for secondary text
+  border: '#dee2e6', // Light border
+  error: '#dc3545', // Red for errors
+  success: '#95C623', // Yellow Green for success
+  warning: '#FDD11D', // Jonquil for warnings
 };
 
 const darkTheme: ThemeColors = {
-  background: '#121212',
-  surface: '#1e1e1e',
-  primary: '#81C784',
-  secondary: '#4CAF50',
-  text: '#ffffff',
-  textSecondary: '#adb5bd',
-  border: '#333333',
-  error: '#ff6b6b',
-  success: '#51cf66',
-  warning: '#ffd43b',
+  background: '#000000', // Black
+  surface: '#1e1e1e', // Dark gray for cards/surfaces
+  primary: '#00693E', // Dartmouth Green
+  secondary: '#95C623', // Yellow Green
+  text: '#FFFFFF', // White
+  textSecondary: '#adb5bd', // Light gray for secondary text
+  border: '#333333', // Dark border
+  error: '#ff6b6b', // Red for errors
+  success: '#95C623', // Yellow Green for success
+  warning: '#FDD11D', // Jonquil for warnings
 };
 
 const ThemeContext = createContext<ThemeColors>(lightTheme);

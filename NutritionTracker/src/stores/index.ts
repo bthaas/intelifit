@@ -21,6 +21,7 @@ import { NutritionCalculator, DateUtils } from '../utils/calculations';
 interface UserStore {
   user: UserProfile | null;
   isAuthenticated: boolean;
+  hasCompletedOnboarding: boolean;
   isLoading: boolean;
   
   // Actions
@@ -28,6 +29,8 @@ interface UserStore {
   updateUser: (updates: Partial<UserProfile>) => Promise<void>;
   logout: () => void;
   setLoading: (loading: boolean) => void;
+  setOnboardingComplete: (completed: boolean) => void;
+  clearAllData: () => void;
 }
 
 export const useUserStore = create<UserStore>()(
@@ -35,6 +38,7 @@ export const useUserStore = create<UserStore>()(
     (set, get) => ({
       user: null,
       isAuthenticated: false,
+      hasCompletedOnboarding: false,
       isLoading: false,
 
       setUser: (user) => 
@@ -57,17 +61,24 @@ export const useUserStore = create<UserStore>()(
       },
 
       logout: () => 
-        set({ user: null, isAuthenticated: false }),
+        set({ user: null, isAuthenticated: false, hasCompletedOnboarding: false }),
+      
+      clearAllData: () => 
+        set({ user: null, isAuthenticated: false, hasCompletedOnboarding: false, isLoading: false }),
 
       setLoading: (loading) => 
         set({ isLoading: loading }),
+
+      setOnboardingComplete: (completed) =>
+        set({ hasCompletedOnboarding: completed }),
     }),
     {
       name: 'user-storage',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ 
         user: state.user, 
-        isAuthenticated: state.isAuthenticated 
+        isAuthenticated: state.isAuthenticated,
+        hasCompletedOnboarding: state.hasCompletedOnboarding
       }),
     }
   )
@@ -558,13 +569,3 @@ export const useSettingsStore = create<SettingsStore>()(
     }
   )
 );
-
-// Export all stores
-export {
-  useUserStore,
-  useNutritionStore,
-  useFoodStore,
-  useWorkoutStore,
-  useWeightStore,
-  useSettingsStore,
-};

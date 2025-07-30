@@ -16,7 +16,7 @@ import { useUserStore, useSettingsStore } from '../../src/stores';
 import { NutritionCalculator } from '../../src/utils/calculations';
 
 interface SettingItemProps {
-  icon: string;
+  icon: React.ComponentProps<typeof FontAwesome>['name'];
   title: string;
   value?: string;
   showArrow?: boolean;
@@ -59,7 +59,7 @@ const SettingItem: React.FC<SettingItemProps> = ({
 interface StatsCardProps {
   title: string;
   value: string;
-  icon: string;
+  icon: React.ComponentProps<typeof FontAwesome>['name'];
   color: string;
 }
 
@@ -81,7 +81,7 @@ const StatsCard: React.FC<StatsCardProps> = ({ title, value, icon, color }) => {
 
 export default function ProfileScreen() {
   const theme = useAppTheme();
-  const { user, logout } = useUserStore();
+  const { user, logout, clearAllData, isAuthenticated, hasCompletedOnboarding } = useUserStore();
   const { 
     theme: themeMode, 
     units, 
@@ -138,6 +138,24 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleClearAllData = () => {
+    Alert.alert(
+      'Clear All Data',
+      'This will clear all stored data and return to login screen. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Clear All', 
+          style: 'destructive',
+          onPress: () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            clearAllData();
+          }
+        }
+      ]
+    );
+  };
+
   const handleNotificationToggle = (type: 'enabled' | 'meals' | 'workouts', value: boolean) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
@@ -165,6 +183,9 @@ export default function ProfileScreen() {
           <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
             No profile found
           </Text>
+          <Text style={[styles.emptyText, { color: theme.textSecondary, fontSize: 12, marginTop: 10 }]}>
+            Auth: {isAuthenticated ? 'Yes' : 'No'} | Onboarding: {hasCompletedOnboarding ? 'Yes' : 'No'}
+          </Text>
           <Pressable 
             onPress={handleEditProfile}
             style={[styles.setupButton, { backgroundColor: theme.primary }]}
@@ -173,13 +194,24 @@ export default function ProfileScreen() {
               Create Profile
             </Text>
           </Pressable>
+          <Pressable 
+            onPress={handleClearAllData}
+            style={[styles.setupButton, { backgroundColor: '#FF6B35', marginTop: 10 }]}
+          >
+            <Text style={styles.setupButtonText}>
+              Reset Everything (Debug)
+            </Text>
+          </Pressable>
         </View>
       </View>
     );
   }
 
-  const bmr = NutritionCalculator.calculateBMR(user);
-  const tdee = NutritionCalculator.calculateTDEE(bmr, user.activityLevel);
+  // Safety checks for user data
+  const bmr = user && user.dateOfBirth && user.currentWeight && user.height ? 
+    NutritionCalculator.calculateBMR(user) : 0;
+  const tdee = user && user.activityLevel && bmr > 0 ? 
+    NutritionCalculator.calculateTDEE(bmr, user.activityLevel) : 0;
 
   const themeDisplayMap = {
     light: 'Light',
@@ -199,15 +231,15 @@ export default function ProfileScreen() {
         <View style={styles.profileInfo}>
           <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
             <Text style={styles.avatarText}>
-              {user.name.charAt(0).toUpperCase()}
+              {(user.name || 'U').charAt(0).toUpperCase()}
             </Text>
           </View>
           <View style={styles.profileDetails}>
             <Text style={[styles.profileName, { color: theme.text }]}>
-              {user.name}
+              {user.name || 'Unknown User'}
             </Text>
             <Text style={[styles.profileEmail, { color: theme.textSecondary }]}>
-              {user.email}
+              {user.email || 'No email'}
             </Text>
           </View>
         </View>
@@ -224,7 +256,7 @@ export default function ProfileScreen() {
       <View style={styles.statsContainer}>
         <StatsCard
           title="Current Weight"
-          value={`${user.currentWeight} kg`}
+          value={`${user.currentWeight || 0} kg`}
           icon="balance-scale"
           color={theme.primary}
         />
@@ -249,23 +281,23 @@ export default function ProfileScreen() {
         </Text>
         
         <SettingItem
-          icon="target"
+          icon="bullseye"
           title="Nutrition Goals"
-          value={`${user.goals.calorieGoal} cal/day`}
+          value={`${user.goals?.calorieGoal || 0} cal/day`}
           onPress={handleEditGoals}
         />
         
         <SettingItem
-          icon="trending-up"
+          icon="line-chart"
           title="Weight Goal"
-          value={user.goals.targetWeight ? `${user.goals.targetWeight} kg` : 'Not set'}
+          value={user.goals?.targetWeight ? `${user.goals.targetWeight} kg` : 'Not set'}
           onPress={handleEditGoals}
         />
         
         <SettingItem
-          icon="activity"
+          icon="heart"
           title="Activity Level"
-          value={user.activityLevel.replace('_', ' ')}
+          value={(user.activityLevel || 'moderate').replace('_', ' ')}
           onPress={handleEditGoals}
         />
       </View>
@@ -378,6 +410,19 @@ export default function ProfileScreen() {
           <FontAwesome name="sign-out" size={20} color="#ffffff" />
           <Text style={styles.logoutButtonText}>
             Logout
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* Debug: Clear All Data */}
+      <View style={styles.section}>
+        <Pressable 
+          onPress={handleClearAllData}
+          style={[styles.logoutButton, { backgroundColor: '#FF6B35' }]}
+        >
+          <FontAwesome name="trash" size={20} color="#ffffff" />
+          <Text style={styles.logoutButtonText}>
+            Clear All Data (Debug)
           </Text>
         </Pressable>
       </View>
