@@ -426,9 +426,9 @@ export default function ProgressScreen() {
         </View>
 
         {/* Weight Goal Progress */}
-        {targetWeight > 0 && (
+        {targetWeight > 0 && goalType !== 'maintain' && (
           <ProgressCard
-            title={`Weight ${goalType === 'lose_weight' ? 'Loss' : goalType === 'gain_weight' ? 'Gain' : 'Maintenance'}`}
+            title={`Weight ${goalType === 'lose_weight' ? 'Loss' : 'Gain'}`}
             current={weightProgress}
             goal={100}
             unit="%"

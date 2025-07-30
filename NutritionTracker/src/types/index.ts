@@ -125,7 +125,6 @@ export interface PrivacySettings {
 export interface Exercise {
   id: string;
   name: string;
-  type: ExerciseCategory;
   category: ExerciseCategory;
   metValue?: number; // for cardio
   equipment?: string[];

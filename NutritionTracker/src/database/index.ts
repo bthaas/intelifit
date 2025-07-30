@@ -377,6 +377,29 @@ class DatabaseManager {
     };
   }
 
+  async updateUser(user: UserProfile): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const now = new Date().toISOString();
+
+    await this.db.runAsync(`
+      UPDATE users SET
+        email = ?, name = ?, date_of_birth = ?, gender = ?, height = ?, 
+        current_weight = ?, activity_level = ?, goal_type = ?, 
+        target_weight = ?, weekly_weight_change = ?, calorie_goal = ?, 
+        macro_protein = ?, macro_carbs = ?, macro_fat = ?, 
+        units = ?, theme = ?, updated_at = ?
+      WHERE id = ?
+    `, [
+      user.email, user.name, user.dateOfBirth.toISOString(),
+      user.gender, user.height, user.currentWeight, user.activityLevel,
+      user.goals.goalType, user.goals.targetWeight ?? null, user.goals.weeklyWeightChange ?? null,
+      user.goals.calorieGoal, user.goals.macroRatios.protein,
+      user.goals.macroRatios.carbs, user.goals.macroRatios.fat,
+      user.preferences.units, user.preferences.theme, now, user.id
+    ]);
+  }
+
   // Food operations
   async createFoodItem(food: Omit<FoodItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     if (!this.db) throw new Error('Database not initialized');
