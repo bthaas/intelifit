@@ -85,15 +85,9 @@ export default function ProfileScreen() {
   const { 
     theme: themeMode, 
     units, 
-    notifications,
     setTheme, 
     setUnits, 
-    updateNotifications 
   } = useSettingsStore();
-
-  const [notificationsEnabled, setNotificationsEnabled] = useState(notifications.enabled);
-  const [mealReminders, setMealReminders] = useState(notifications.mealReminders);
-  const [workoutReminders, setWorkoutReminders] = useState(notifications.workoutReminders);
 
   const handleThemeChange = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -154,25 +148,6 @@ export default function ProfileScreen() {
         }
       ]
     );
-  };
-
-  const handleNotificationToggle = (type: 'enabled' | 'meals' | 'workouts', value: boolean) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    switch (type) {
-      case 'enabled':
-        setNotificationsEnabled(value);
-        updateNotifications({ enabled: value });
-        break;
-      case 'meals':
-        setMealReminders(value);
-        updateNotifications({ mealReminders: value });
-        break;
-      case 'workouts':
-        setWorkoutReminders(value);
-        updateNotifications({ workoutReminders: value });
-        break;
-    }
   };
 
   if (!user) {
@@ -321,59 +296,6 @@ export default function ProfileScreen() {
           value={unitsDisplayMap[units]}
           onPress={handleUnitsChange}
         />
-      </View>
-
-      {/* Notifications */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Notifications
-        </Text>
-        
-        <SettingItem
-          icon="bell"
-          title="Enable Notifications"
-          showArrow={false}
-          rightComponent={
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={(value) => handleNotificationToggle('enabled', value)}
-              trackColor={{ false: theme.border, true: theme.primary }}
-              thumbColor={notificationsEnabled ? '#ffffff' : '#f4f3f4'}
-            />
-          }
-        />
-        
-        {notificationsEnabled && (
-          <>
-            <SettingItem
-              icon="cutlery"
-              title="Meal Reminders"
-              showArrow={false}
-              rightComponent={
-                <Switch
-                  value={mealReminders}
-                  onValueChange={(value) => handleNotificationToggle('meals', value)}
-                  trackColor={{ false: theme.border, true: theme.primary }}
-                  thumbColor={mealReminders ? '#ffffff' : '#f4f3f4'}
-                />
-              }
-            />
-            
-            <SettingItem
-              icon="heart"
-              title="Workout Reminders"
-              showArrow={false}
-              rightComponent={
-                <Switch
-                  value={workoutReminders}
-                  onValueChange={(value) => handleNotificationToggle('workouts', value)}
-                  trackColor={{ false: theme.border, true: theme.primary }}
-                  thumbColor={workoutReminders ? '#ffffff' : '#f4f3f4'}
-                />
-              }
-            />
-          </>
-        )}
       </View>
 
       {/* Support */}

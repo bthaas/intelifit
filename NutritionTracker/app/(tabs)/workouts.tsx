@@ -8,14 +8,15 @@ import {
   Pressable,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { FontAwesome } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { useAppTheme } from '../../src/components/ui/ThemeProvider';
 import { useWorkoutStore, useUserStore } from '../../src/stores';
 import { NutritionCalculator, DateUtils } from '../../src/utils/calculations';
-import { WorkoutSession, ExerciseSet } from '../../src/types';
+import { WorkoutSession, ExerciseSet, Exercise, ExerciseCategory } from '../../src/types';
 
 // Exercise data with MET values and intensity levels
 const CARDIO_EXERCISES = [
@@ -81,6 +82,7 @@ interface WorkoutCardProps {
 
 const WorkoutCard: React.FC<WorkoutCardProps> = ({ workout, onPress, onDelete }) => {
   const theme = useAppTheme();
+  const exerciseType = workout.exercises[0]?.type || 'Workout';
 
   return (
     <Pressable 
@@ -88,10 +90,15 @@ const WorkoutCard: React.FC<WorkoutCardProps> = ({ workout, onPress, onDelete })
       style={[styles.workoutCard, { backgroundColor: theme.surface }]}
     >
       <View style={styles.workoutHeader}>
-        <FontAwesome name="heart" size={20} color={theme.primary} />
-        <Text style={[styles.workoutDate, { color: theme.text }]}>
-          {DateUtils.formatDate(workout.date)}
-        </Text>
+        <FontAwesome name="bolt" size={20} color={theme.primary} />
+        <View style={styles.workoutTitleContainer}>
+          <Text style={[styles.workoutDate, { color: theme.text }]}>
+            {DateUtils.formatDate(workout.date)}
+          </Text>
+          <Text style={[styles.workoutType, { color: theme.textSecondary }]}>
+            {exerciseType.charAt(0).toUpperCase() + exerciseType.slice(1)}
+          </Text>
+        </View>
         <Text style={[styles.workoutCalories, { color: theme.textSecondary }]}>
           {workout.caloriesBurned} cal
         </Text>
@@ -125,13 +132,12 @@ const WorkoutCard: React.FC<WorkoutCardProps> = ({ workout, onPress, onDelete })
 
 interface QuickWorkoutProps {
   name: string;
-  duration: number;
-  estimatedCalories: number;
+  type: ExerciseCategory;
   onStart: () => void;
 }
 
 const QuickWorkout: React.FC<QuickWorkoutProps> = ({ 
-  name, duration, estimatedCalories, onStart 
+  name, type, onStart 
 }) => {
   const theme = useAppTheme();
 
@@ -145,7 +151,7 @@ const QuickWorkout: React.FC<QuickWorkoutProps> = ({
           {name}
         </Text>
         <Text style={[styles.quickWorkoutDetails, { color: theme.textSecondary }]}>
-          {duration} min • ~{estimatedCalories} cal
+          {type.charAt(0).toUpperCase() + type.slice(1)}
         </Text>
       </View>
       <FontAwesome name="play" size={16} color={theme.primary} />
@@ -174,6 +180,29 @@ export default function WorkoutsScreen() {
   const [exerciseIntensity, setExerciseIntensity] = useState<'low' | 'moderate' | 'high'>('moderate');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'cardio' | 'strength'>('all');
+
+  // Generate a list of unique, recent exercises to use as quick-start templates
+  const recentUniqueExercises = React.useMemo(() => {
+    const uniqueNames = new Set<string>();
+    const uniqueExercises: Exercise[] = [];
+
+    // Flatten all exercises from all workout sessions
+    const allPerformedExercises = workouts.flatMap(w => w.exercises);
+
+    for (const exercise of allPerformedExercises) {
+      if (!uniqueNames.has(exercise.name) && uniqueExercises.length < 4) {
+        uniqueNames.add(exercise.name);
+        // Find the full exercise details from our master lists
+        const fullExercise = [...CARDIO_EXERCISES, ...STRENGTH_EXERCISES].find(
+          e => e.name === exercise.name
+        );
+        if (fullExercise) {
+          uniqueExercises.push({ ...fullExercise, type: exercise.type } as any);
+        }
+      }
+    }
+    return uniqueExercises;
+  }, [workouts]);
 
   useEffect(() => {
     loadExercises();
@@ -347,7 +376,7 @@ export default function WorkoutsScreen() {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <View style={styles.centered}>
-          <FontAwesome name="heart" size={64} color={theme.textSecondary} />
+          <FontAwesome name="bolt" size={64} color={theme.textSecondary} />
           <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
             Set up your profile to start tracking workouts
           </Text>
@@ -403,21 +432,29 @@ export default function WorkoutsScreen() {
           </View>
         </View>
 
-        {/* Quick Start Workouts */}
+        {/* Quick Start Workouts (now based on recent activity) */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>
             Quick Start
           </Text>
           
-          {quickWorkouts.map((workout, index) => (
-            <QuickWorkout
-              key={index}
-              name={workout.name}
-              duration={workout.duration}
-              estimatedCalories={workout.estimatedCalories}
-              onStart={() => handleStartQuickWorkout(workout.name)}
-            />
-          ))}
+          {recentUniqueExercises.length > 0 ? (
+            recentUniqueExercises.map((exercise, index) => (
+              <QuickWorkout
+                key={index}
+                name={exercise.name}
+                type={exercise.type}
+                onStart={() => {
+                  handleExerciseSelect(exercise);
+                  setShowExerciseModal(true);
+                }}
+              />
+            ))
+          ) : (
+            <Text style={[styles.emptySubtext, { color: theme.textSecondary }]}>
+              Your recent workouts will appear here for quick access.
+            </Text>
+          )}
           
           <Pressable 
             onPress={handleAddCustomWorkout}
@@ -438,7 +475,7 @@ export default function WorkoutsScreen() {
           
           {workouts.length === 0 ? (
             <View style={styles.emptyState}>
-              <FontAwesome name="heart-o" size={48} color={theme.textSecondary} />
+              <FontAwesome name="bolt" size={48} color={theme.textSecondary} />
               <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
                 No workouts yet
               </Text>
@@ -807,11 +844,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  workoutTitleContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
   workoutDate: {
     fontSize: 16,
     fontWeight: '600',
-    marginLeft: 8,
-    flex: 1,
+  },
+  workoutType: {
+    fontSize: 14,
+    textTransform: 'capitalize',
   },
   workoutCalories: {
     fontSize: 14,

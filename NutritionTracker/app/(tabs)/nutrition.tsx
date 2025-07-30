@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Link } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { MaterialCommunityIcons, Feather, FontAwesome5 } from '@expo/vector-icons';
 import { PieChart, BarChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -72,18 +73,19 @@ interface MealSectionProps {
   foods: ConsumedFood[];
   calories: number;
   onAddFood: () => void;
+  onDeleteFood: (foodId: string, mealType: MealType) => void;
 }
 
 const MealSection: React.FC<MealSectionProps> = ({ 
-  mealType, foods, calories, onAddFood 
+  mealType, foods, calories, onAddFood, onDeleteFood 
 }) => {
   const theme = useAppTheme();
   
-  const mealIcons: Record<MealType, React.ComponentProps<typeof FontAwesome>['name']> = {
-    breakfast: 'sun-o',
-    lunch: 'clock-o',
-    dinner: 'moon-o',
-    snack: 'apple',
+  const mealIcons: Record<MealType, { pack: 'FontAwesome' | 'MaterialCommunityIcons' | 'Feather' | 'FontAwesome5'; name: string }> = {
+    breakfast: { pack: 'Feather', name: 'sun' },
+    lunch: { pack: 'FontAwesome5', name: 'cloud-sun' },
+    dinner: { pack: 'FontAwesome', name: 'moon-o' },
+    snack: { pack: 'MaterialCommunityIcons', name: 'fruit-cherries' },
   };
 
   const mealLabels = {
@@ -97,11 +99,21 @@ const MealSection: React.FC<MealSectionProps> = ({
     <View style={[styles.mealSection, { backgroundColor: theme.surface }]}>
       <View style={styles.mealHeader}>
         <View style={styles.mealTitleContainer}>
-          <FontAwesome 
-            name={mealIcons[mealType]} 
-            size={20} 
-            color={theme.primary} 
-          />
+          {(() => {
+            const iconInfo = mealIcons[mealType];
+            switch (iconInfo.pack) {
+              case 'FontAwesome':
+                return <FontAwesome name={iconInfo.name as any} size={20} color={theme.primary} />;
+              case 'MaterialCommunityIcons':
+                return <MaterialCommunityIcons name={iconInfo.name as any} size={20} color={theme.primary} />;
+              case 'Feather':
+                return <Feather name={iconInfo.name as any} size={20} color={theme.primary} />;
+              case 'FontAwesome5':
+                return <FontAwesome5 name={iconInfo.name as any} size={20} color={theme.primary} />;
+              default:
+                return null;
+            }
+          })()}
           <Text style={[styles.mealTitle, { color: theme.text }]}>
             {mealLabels[mealType]}
           </Text>
@@ -109,20 +121,10 @@ const MealSection: React.FC<MealSectionProps> = ({
             {Math.round(calories)} cal
           </Text>
         </View>
-        <Pressable 
-          onPress={onAddFood}
-          style={[styles.addButton, { borderColor: theme.primary }]}
-        >
-          <FontAwesome name="plus" size={16} color={theme.primary} />
-        </Pressable>
       </View>
       
       {foods.length === 0 ? (
-        <Pressable onPress={onAddFood} style={styles.emptyMeal}>
-          <Text style={[styles.emptyMealText, { color: theme.textSecondary }]}>
-            Tap to add food
-          </Text>
-        </Pressable>
+        <Pressable onPress={onAddFood} style={styles.emptyMeal} />
       ) : (
         <View style={styles.foodList}>
           {foods.map((food) => (
@@ -135,6 +137,9 @@ const MealSection: React.FC<MealSectionProps> = ({
                   {food.quantity} {food.servingSize.name} • {Math.round(food.nutritionConsumed.calories)} cal
                 </Text>
               </View>
+              <Pressable onPress={() => onDeleteFood(food.id, mealType)} style={styles.deleteButton}>
+                <FontAwesome name="trash" size={18} color={theme.textSecondary} />
+              </Pressable>
             </View>
           ))}
         </View>
@@ -249,7 +254,8 @@ export default function NutritionScreen() {
     currentDate, 
     setCurrentDate, 
     loadDailyEntry,
-    updateWaterIntake 
+    updateWaterIntake,
+    deleteFoodEntry,
   } = useNutritionStore();
   
   const [refreshing, setRefreshing] = useState(false);
@@ -338,11 +344,28 @@ export default function NutritionScreen() {
     setRefreshing(false);
   };
 
-  const handleAddWater = async () => {
+  const handleUpdateWater = async (amount: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const newGlasses = waterGlasses + 1;
-    setWaterGlasses(newGlasses);
-    await updateWaterIntake(newGlasses * 250);
+    const newWaterIntake = Math.max(0, (todayEntry?.waterIntake || 0) + amount);
+    await updateWaterIntake(newWaterIntake);
+  };
+
+  const handleDeleteFood = (foodId: string, mealType: MealType) => {
+    Alert.alert(
+      "Delete Food Item",
+      "Are you sure you want to delete this item from your meal?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            await deleteFoodEntry(foodId, mealType);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          },
+        },
+      ]
+    );
   };
 
   const handleAddFood = (mealType: MealType) => {
@@ -466,23 +489,35 @@ export default function NutritionScreen() {
                 Water Intake
               </Text>
               <Text style={[styles.waterCount, { color: theme.textSecondary }]}>
-                {waterGlasses} glasses ({waterGlasses * 250}ml)
+                {Math.round((todayEntry?.waterIntake || 0) / 250)} glasses ({todayEntry?.waterIntake || 0}ml)
               </Text>
             </View>
-            <View style={styles.waterGlasses}>
-              {Array.from({ length: 8 }, (_, i) => (
-                <Pressable
-                  key={i}
-                  onPress={i === waterGlasses ? handleAddWater : undefined}
-                  style={styles.waterGlass}
-                >
-                  <FontAwesome
-                    name="tint"
-                    size={24}
-                    color={i < waterGlasses ? theme.primary : theme.border}
-                  />
-                </Pressable>
-              ))}
+            <View style={styles.waterControls}>
+              <Pressable 
+                onPress={() => handleUpdateWater(-250)}
+                style={[styles.waterButton, { backgroundColor: theme.border }]}
+              >
+                <FontAwesome name="minus" size={20} color={theme.text} />
+              </Pressable>
+              
+              <View style={styles.waterGlasses}>
+                {Array.from({ length: 8 }, (_, i) => (
+                  <View key={i} style={styles.waterGlass}>
+                    <FontAwesome
+                      name="tint"
+                      size={24}
+                      color={i < Math.round((todayEntry?.waterIntake || 0) / 250) ? theme.primary : theme.border}
+                    />
+                  </View>
+                ))}
+              </View>
+
+              <Pressable 
+                onPress={() => handleUpdateWater(250)}
+                style={[styles.waterButton, { backgroundColor: theme.primary }]}
+              >
+                <FontAwesome name="plus" size={20} color="#ffffff" />
+              </Pressable>
             </View>
           </View>
 
@@ -580,6 +615,7 @@ export default function NutritionScreen() {
             foods={mealData.breakfast.foods}
             calories={mealData.breakfast.calories}
             onAddFood={() => handleAddFood('breakfast')}
+            onDeleteFood={handleDeleteFood}
           />
           
           <MealSection
@@ -587,6 +623,7 @@ export default function NutritionScreen() {
             foods={mealData.lunch.foods}
             calories={mealData.lunch.calories}
             onAddFood={() => handleAddFood('lunch')}
+            onDeleteFood={handleDeleteFood}
           />
           
           <MealSection
@@ -594,6 +631,7 @@ export default function NutritionScreen() {
             foods={mealData.dinner.foods}
             calories={mealData.dinner.calories}
             onAddFood={() => handleAddFood('dinner')}
+            onDeleteFood={handleDeleteFood}
           />
           
           <MealSection
@@ -601,6 +639,7 @@ export default function NutritionScreen() {
             foods={mealData.snack.foods}
             calories={mealData.snack.calories}
             onAddFood={() => handleAddFood('snack')}
+            onDeleteFood={handleDeleteFood}
           />
         </>
       )}
@@ -767,9 +806,21 @@ const styles = StyleSheet.create({
   waterCount: {
     fontSize: 14,
   },
-  waterGlasses: {
+  waterControls: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  waterButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  waterGlasses: {
+    flexDirection: 'row',
   },
   waterGlass: {
     padding: 8,
@@ -875,14 +926,6 @@ const styles = StyleSheet.create({
   mealCalories: {
     fontSize: 14,
   },
-  addButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   emptyMeal: {
     paddingHorizontal: 16,
     paddingBottom: 16,
@@ -903,6 +946,9 @@ const styles = StyleSheet.create({
   },
   foodInfo: {
     flex: 1,
+  },
+  deleteButton: {
+    padding: 8,
   },
   foodName: {
     fontSize: 14,

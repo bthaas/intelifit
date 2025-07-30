@@ -7,7 +7,9 @@ import Colors from '../../constants/Colors';
  * You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
  */
 function TabBarIcon({ name, color }: { name: React.ComponentProps<typeof FontAwesome>['name']; color: string }) {
-  return <FontAwesome size={28} name={name} color={color} />;
+  // Fallback to a default icon if the name is not found
+  const iconName = name && FontAwesome.glyphMap[name] ? name : 'circle';
+  return <FontAwesome size={28} name={iconName} color={color} />;
 }
 
 export default function TabLayout() {
@@ -29,8 +31,7 @@ export default function TabLayout() {
         name="nutrition"
         options={{
           title: 'Nutrition',
-          tabBarIcon: ({ color }) => <TabBarIcon name="pie-chart" color={color} />,
-          tabBarBadge: 3,
+          tabBarIcon: ({ color }) => <TabBarIcon name="cutlery" color={color} />,
         }}
       />
 
@@ -38,7 +39,7 @@ export default function TabLayout() {
         name="workouts"
         options={{
           title: 'Workouts',
-          tabBarIcon: ({ color }) => <TabBarIcon name="heart" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="bolt" color={color} />,
         }}
       />
       <Tabs.Screen

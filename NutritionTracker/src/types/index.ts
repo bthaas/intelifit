@@ -125,6 +125,7 @@ export interface PrivacySettings {
 export interface Exercise {
   id: string;
   name: string;
+  type: ExerciseCategory;
   category: ExerciseCategory;
   metValue?: number; // for cardio
   equipment?: string[];
@@ -247,7 +248,7 @@ export type FontAwesomeIconName =
   | 'target' | 'pie-chart' | 'equals' | 'minus' | 'chevron-right'
   | 'male' | 'female' | 'sort' | 'map' | 'filter' | 'at' | 'barcode'
   | 'search' | 'repeat' | 'anchor' | 'bold' | 'link' | 'code'
-  | 'header' | 'table' | 'th' | 'circle' | 'image' | 'meetup';
+  | 'header' | 'table' | 'th' | 'circle' | 'image' | 'meetup' | 'dumbbell';
 
 // API and database types
 export interface ApiResponse<T> {

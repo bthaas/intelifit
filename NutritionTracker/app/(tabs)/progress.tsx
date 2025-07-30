@@ -6,6 +6,9 @@ import {
   Text,
   Pressable,
   Dimensions,
+  Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LineChart } from 'react-native-chart-kit';
@@ -24,10 +27,11 @@ interface ProgressCardProps {
   icon: React.ComponentProps<typeof FontAwesome>['name'];
   color: string;
   showProgress?: boolean;
+  onLogPress?: () => void;
 }
 
 const ProgressCard: React.FC<ProgressCardProps> = ({
-  title, current, goal, unit, icon, color, showProgress = true
+  title, current, goal, unit, icon, color, showProgress = true, onLogPress
 }) => {
   const theme = useAppTheme();
   const progress = goal > 0 ? (current / goal) * 100 : 0;
@@ -40,6 +44,12 @@ const ProgressCard: React.FC<ProgressCardProps> = ({
         <Text style={[styles.progressTitle, { color: theme.text }]}>
           {title}
         </Text>
+        {onLogPress && (
+          <Pressable onPress={onLogPress} style={[styles.logButton, { borderColor: theme.primary }]}>
+            <FontAwesome name="plus" size={16} color={theme.primary} />
+            <Text style={[styles.logButtonText, { color: theme.primary }]}>Log</Text>
+          </Pressable>
+        )}
       </View>
       
       <View style={styles.progressValues}>
@@ -77,33 +87,58 @@ const ProgressCard: React.FC<ProgressCardProps> = ({
 
 interface WeightTrendProps {
   weightEntries: Array<{ date: Date; weight: number }>;
+  onLogPress: () => void;
+  periodLabel: string;
 }
 
-const WeightTrend: React.FC<WeightTrendProps> = ({ weightEntries }) => {
+const WeightTrend: React.FC<WeightTrendProps> = ({ weightEntries, onLogPress, periodLabel }) => {
   const theme = useAppTheme();
 
-  if (weightEntries.length < 2) {
+  if (weightEntries.length === 0) {
     return (
       <View style={[styles.chartContainer, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.chartTitle, { color: theme.text }]}>
-          Weight Trend
-        </Text>
+        <View style={styles.chartHeader}>
+          <Text style={[styles.chartTitle, { color: theme.text }]}>
+            Weight Trend
+          </Text>
+          <Pressable onPress={onLogPress} style={[styles.logButton, { borderColor: theme.primary }]}>
+            <FontAwesome name="plus" size={16} color={theme.primary} />
+            <Text style={[styles.logButtonText, { color: theme.primary }]}>Log Weight</Text>
+          </Pressable>
+        </View>
         <View style={styles.emptyChart}>
           <FontAwesome name="line-chart" size={48} color={theme.textSecondary} />
           <Text style={[styles.emptyChartText, { color: theme.textSecondary }]}>
-            Add more weight entries to see your trend
+            Log your weight to see your trend
           </Text>
         </View>
       </View>
     );
   }
 
+  const entriesForChart = weightEntries;
+  const dataPoints = entriesForChart.map(entry => entry.weight);
+  
+  // Dynamically create labels based on the period to avoid clutter
+  const labels = entriesForChart.map((entry, index) => {
+    const total = entriesForChart.length;
+    // Show fewer labels for longer periods
+    if (total > 10 && index % Math.floor(total / 5) !== 0) {
+      return '';
+    }
+    return entry.date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+  });
+
+  // If there's only one data point, duplicate it to draw a point on the chart
+  if (dataPoints.length === 1) {
+    dataPoints.push(dataPoints[0]);
+    labels.push('');
+  }
+
   const chartData = {
-    labels: weightEntries.slice(-7).map(entry => 
-      entry.date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
-    ),
+    labels,
     datasets: [{
-      data: weightEntries.slice(-7).map(entry => entry.weight),
+      data: dataPoints,
       color: (opacity = 1) => theme.primary,
       strokeWidth: 3,
     }],
@@ -111,10 +146,10 @@ const WeightTrend: React.FC<WeightTrendProps> = ({ weightEntries }) => {
 
   const chartConfig = {
     backgroundGradientFrom: theme.surface,
-    backgroundGradientFromOpacity: 0,
     backgroundGradientTo: theme.surface,
-    backgroundGradientToOpacity: 0,
-    color: (opacity = 1) => theme.primary,
+    backgroundGradientFromOpacity: 1,
+    backgroundGradientToOpacity: 1,
+    color: (opacity = 1) => theme.textSecondary,
     strokeWidth: 2,
     barPercentage: 0.5,
     useShadowColorFromDataset: false,
@@ -123,9 +158,15 @@ const WeightTrend: React.FC<WeightTrendProps> = ({ weightEntries }) => {
 
   return (
     <View style={[styles.chartContainer, { backgroundColor: theme.surface }]}>
-      <Text style={[styles.chartTitle, { color: theme.text }]}>
-        Weight Trend (Last 7 Days)
-      </Text>
+      <View style={styles.chartHeader}>
+        <Text style={[styles.chartTitle, { color: theme.text }]}>
+          Weight Trend ({periodLabel})
+        </Text>
+        <Pressable onPress={onLogPress} style={[styles.logButton, { borderColor: theme.primary }]}>
+          <FontAwesome name="plus" size={16} color={theme.primary} />
+          <Text style={[styles.logButtonText, { color: theme.primary }]}>Log Weight</Text>
+        </Pressable>
+      </View>
       <LineChart
         data={chartData}
         width={screenWidth - 64}
@@ -147,29 +188,78 @@ const WeightTrend: React.FC<WeightTrendProps> = ({ weightEntries }) => {
 export default function ProgressScreen() {
   const theme = useAppTheme();
   const { user } = useUserStore();
-  const { entries: weightEntries, getLatestWeight } = useWeightStore();
+  const { entries: weightEntries, getLatestWeight, addWeightEntry } = useWeightStore();
   const { dailyEntries, currentDate } = useNutritionStore();
 
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year'>('week');
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [newWeight, setNewWeight] = useState('');
+
+  const sortedWeightEntries = React.useMemo(() => 
+    weightEntries
+      .map(entry => ({
+        ...entry,
+        date: new Date(entry.date), // Ensure it's a Date object
+      }))
+      .sort((a, b) => a.date.getTime() - b.date.getTime()),
+    [weightEntries]
+  );
+
+  const { filteredWeightEntries, filteredNutritionEntries, periodLabel } = React.useMemo(() => {
+    const now = new Date();
+    let startDate = new Date();
+    let label = '';
+
+    switch (selectedPeriod) {
+      case 'month':
+        startDate.setDate(now.getDate() - 30);
+        label = 'Last 30 Days';
+        break;
+      case 'year':
+        startDate.setFullYear(now.getFullYear() - 1);
+        label = 'Last Year';
+        break;
+      case 'week':
+      default:
+        startDate.setDate(now.getDate() - 7);
+        label = 'Last 7 Days';
+        break;
+    }
+
+    const fwe = sortedWeightEntries.filter(entry => entry.date >= startDate);
+    const fne = Object.values(dailyEntries).filter(entry => new Date(entry.date + 'T00:00:00') >= startDate);
+
+    return {
+      filteredWeightEntries: fwe,
+      filteredNutritionEntries: fne,
+      periodLabel: label,
+    };
+  }, [selectedPeriod, sortedWeightEntries, dailyEntries]);
+
 
   const currentWeight = getLatestWeight() || user?.currentWeight || 0;
   const targetWeight = user?.goals.targetWeight || 0;
   const goalType = user?.goals.goalType || 'maintain';
 
-  // Calculate progress towards weight goal
+  // Calculate progress towards weight goal based on the selected period
   const weightProgress = (() => {
-    if (!user?.currentWeight || !targetWeight) return 0;
+    if (!targetWeight) return 0;
     
-    const startWeight = user.currentWeight;
-    const currentWeightValue = currentWeight;
-    
+    const startWeight = filteredWeightEntries.length > 0 
+      ? filteredWeightEntries[0].weight 
+      : currentWeight;
+
+    const endWeight = currentWeight;
+
     if (goalType === 'lose_weight') {
+      if (targetWeight >= startWeight) return 0;
       const totalToLose = startWeight - targetWeight;
-      const lostSoFar = startWeight - currentWeightValue;
+      const lostSoFar = startWeight - endWeight;
       return totalToLose > 0 ? (lostSoFar / totalToLose) * 100 : 0;
     } else if (goalType === 'gain_weight') {
+      if (targetWeight <= startWeight) return 0;
       const totalToGain = targetWeight - startWeight;
-      const gainedSoFar = currentWeightValue - startWeight;
+      const gainedSoFar = endWeight - startWeight;
       return totalToGain > 0 ? (gainedSoFar / totalToGain) * 100 : 0;
     }
     
@@ -177,9 +267,8 @@ export default function ProgressScreen() {
   })();
 
   // Calculate average nutrition for the period
-  const periodEntries = Object.values(dailyEntries).slice(-7); // Last 7 days
-  const avgCalories = periodEntries.length > 0 
-    ? periodEntries.reduce((sum, entry) => sum + entry.totalNutrition.calories, 0) / periodEntries.length
+  const avgCalories = filteredNutritionEntries.length > 0 
+    ? filteredNutritionEntries.reduce((sum, entry) => sum + entry.totalNutrition.calories, 0) / filteredNutritionEntries.length
     : 0;
 
   const calorieGoal = user?.goals.calorieGoal || 2000;
@@ -204,9 +293,21 @@ export default function ProgressScreen() {
     return count;
   })();
 
-  const handleAddWeight = () => {
-    // Navigate to weight entry modal
-    console.log('Add weight entry');
+  const handleLogWeight = async () => {
+    const weight = parseFloat(newWeight);
+    if (isNaN(weight) || weight <= 0) {
+      Alert.alert('Invalid Input', 'Please enter a valid weight.');
+      return;
+    }
+
+    try {
+      await addWeightEntry(weight, new Date());
+      setNewWeight('');
+      setModalVisible(false);
+      Alert.alert('Success', 'Your weight has been logged.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to log weight. Please try again.');
+    }
   };
 
   if (!user) {
@@ -223,129 +324,144 @@ export default function ProgressScreen() {
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Period Selector */}
-      <View style={[styles.periodSelector, { backgroundColor: theme.surface }]}>
-        {(['week', 'month', 'year'] as const).map((period) => (
-          <Pressable
-            key={period}
-            onPress={() => setSelectedPeriod(period)}
-            style={[
-              styles.periodButton,
-              selectedPeriod === period && { backgroundColor: theme.primary }
-            ]}
-          >
-            <Text style={[
-              styles.periodButtonText,
-              { color: selectedPeriod === period ? '#ffffff' : theme.text }
-            ]}>
-              {period.charAt(0).toUpperCase() + period.slice(1)}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+    <>
+      <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+        {/* Period Selector */}
+        <View style={[styles.periodSelector, { backgroundColor: theme.surface }]}>
+          {(['week', 'month', 'year'] as const).map((period) => (
+            <Pressable
+              key={period}
+              onPress={() => setSelectedPeriod(period)}
+              style={[
+                styles.periodButton,
+                selectedPeriod === period && { backgroundColor: theme.primary }
+              ]}
+            >
+              <Text style={[
+                styles.periodButtonText,
+                { color: selectedPeriod === period ? '#ffffff' : theme.text }
+              ]}>
+                {period.charAt(0).toUpperCase() + period.slice(1)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
-      {/* Overview Cards */}
-      <View style={styles.overviewGrid}>
-        <ProgressCard
-          title="Current Weight"
-          current={currentWeight}
-          goal={0}
-          unit="kg"
-          icon="balance-scale"
-          color={theme.primary}
-          showProgress={false}
-        />
-        
-        <ProgressCard
-          title="Logging Streak"
-          current={streak}
-          goal={0}
-          unit=" days"
-          icon="fire"
-          color="#ff6b6b"
-          showProgress={false}
-        />
-      </View>
+        {/* Overview Cards */}
+        <View style={styles.overviewGrid}>
+          <ProgressCard
+            title="Current Weight"
+            current={currentWeight}
+            goal={0}
+            unit="kg"
+            icon="balance-scale"
+            color={theme.primary}
+            showProgress={false}
+          />
+          
+          <ProgressCard
+            title="Logging Streak"
+            current={streak}
+            goal={0}
+            unit=" days"
+            icon="fire"
+            color="#ff6b6b"
+            showProgress={false}
+          />
+        </View>
 
-      {/* Weight Goal Progress */}
-      {targetWeight > 0 && (
-        <ProgressCard
-          title={`Weight ${goalType === 'lose_weight' ? 'Loss' : goalType === 'gain_weight' ? 'Gain' : 'Maintenance'}`}
-          current={weightProgress}
-          goal={100}
-          unit="%"
-          icon="bullseye"
-          color={theme.success}
-        />
-      )}
-
-      {/* Calorie Goal Progress */}
-      <ProgressCard
-        title="Daily Calorie Average"
-        current={avgCalories}
-        goal={calorieGoal}
-        unit=" cal"
-        icon="pie-chart"
-        color="#f39c12"
-      />
-
-      {/* Weight Trend Chart */}
-      <WeightTrend weightEntries={weightEntries} />
-
-      {/* Quick Actions */}
-      <View style={[styles.actionsContainer, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Quick Actions
-        </Text>
-        
-        <Pressable 
-          onPress={handleAddWeight}
-          style={[styles.actionButton, { borderColor: theme.primary }]}
-        >
-          <FontAwesome name="plus" size={20} color={theme.primary} />
-          <Text style={[styles.actionButtonText, { color: theme.primary }]}>
-            Log Weight
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* Recent Weight Entries */}
-      <View style={[styles.entriesContainer, { backgroundColor: theme.surface }]}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Recent Weight Entries
-        </Text>
-        
-        {weightEntries.length === 0 ? (
-          <View style={styles.emptyEntries}>
-            <FontAwesome name="balance-scale" size={32} color={theme.textSecondary} />
-            <Text style={[styles.emptyEntriesText, { color: theme.textSecondary }]}>
-              No weight entries yet
-            </Text>
-          </View>
-        ) : (
-          weightEntries.slice(0, 5).map((entry) => (
-            <View key={entry.id} style={styles.weightEntry}>
-              <View style={styles.weightEntryInfo}>
-                <Text style={[styles.weightEntryWeight, { color: theme.text }]}>
-                  {entry.weight.toFixed(1)} kg
-                </Text>
-                <Text style={[styles.weightEntryDate, { color: theme.textSecondary }]}>
-                  {DateUtils.formatDate(entry.date)}
-                </Text>
-              </View>
-              {entry.notes && (
-                <Text style={[styles.weightEntryNotes, { color: theme.textSecondary }]}>
-                  {entry.notes}
-                </Text>
-              )}
-            </View>
-          ))
+        {/* Weight Goal Progress */}
+        {targetWeight > 0 && (
+          <ProgressCard
+            title={`Weight ${goalType === 'lose_weight' ? 'Loss' : goalType === 'gain_weight' ? 'Gain' : 'Maintenance'}`}
+            current={weightProgress}
+            goal={100}
+            unit="%"
+            icon="bullseye"
+            color={theme.success}
+          />
         )}
-      </View>
 
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+        {/* Calorie Goal Progress */}
+        <ProgressCard
+          title={`Calorie Average (${periodLabel})`}
+          current={avgCalories}
+          goal={calorieGoal}
+          unit=" cal"
+          icon="pie-chart"
+          color="#f39c12"
+        />
+
+        {/* Weight Trend Chart */}
+        <WeightTrend 
+          weightEntries={filteredWeightEntries} 
+          onLogPress={() => setModalVisible(true)}
+          periodLabel={periodLabel}
+        />
+
+        {/* Recent Weight Entries */}
+        <View style={[styles.entriesContainer, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            Weight Entries ({periodLabel})
+          </Text>
+          
+          {filteredWeightEntries.length === 0 ? (
+            <View style={styles.emptyEntries}>
+              <FontAwesome name="balance-scale" size={32} color={theme.textSecondary} />
+              <Text style={[styles.emptyEntriesText, { color: theme.textSecondary }]}>
+                No weight entries in this period
+              </Text>
+            </View>
+          ) : (
+            [...filteredWeightEntries].reverse().map((entry) => (
+              <View key={entry.id} style={styles.weightEntry}>
+                <View style={styles.weightEntryInfo}>
+                  <Text style={[styles.weightEntryWeight, { color: theme.text }]}>
+                    {entry.weight.toFixed(1)} kg
+                  </Text>
+                  <Text style={[styles.weightEntryDate, { color: theme.textSecondary }]}>
+                    {DateUtils.formatDate(entry.date)}
+                  </Text>
+                </View>
+                {entry.notes && (
+                  <Text style={[styles.weightEntryNotes, { color: theme.textSecondary }]}>
+                    {entry.notes}
+                  </Text>
+                )}
+              </View>
+            ))
+          )}
+        </View>
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+      <Modal
+        visible={isModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Log Your Weight</Text>
+            <TextInput
+              style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+              placeholder="Enter weight in kg"
+              placeholderTextColor={theme.textSecondary}
+              keyboardType="numeric"
+              value={newWeight}
+              onChangeText={setNewWeight}
+            />
+            <Pressable style={[styles.saveButton, { backgroundColor: theme.primary }]} onPress={handleLogWeight}>
+              <Text style={styles.saveButtonText}>Save Weight</Text>
+            </Pressable>
+            <Pressable style={styles.cancelButton} onPress={() => setModalVisible(false)}>
+              <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -401,6 +517,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
+    flex: 1,
+  },
+  logButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  logButtonText: {
+    marginLeft: 6,
+    fontWeight: '600',
+    fontSize: 12,
   },
   progressValues: {
     flexDirection: 'row',
@@ -440,12 +570,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 16,
     borderRadius: 12,
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
   },
   chartTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 16,
   },
   chart: {
     borderRadius: 8,
@@ -522,5 +656,46 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 20,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '80%',
+    padding: 20,
+    borderRadius: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  input: {
+    height: 40,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginBottom: 16,
+  },
+  saveButton: {
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  saveButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  cancelButton: {
+    padding: 8,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 14,
   },
 });
