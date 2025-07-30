@@ -26,7 +26,7 @@ interface UserStore {
   
   // Actions
   setUser: (user: UserProfile) => void;
-  updateUser: (updates: Partial<UserProfile>) => Promise<void>;
+  updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
   logout: () => void;
   setLoading: (loading: boolean) => void;
   setOnboardingComplete: (completed: boolean) => void;
@@ -44,19 +44,19 @@ export const useUserStore = create<UserStore>()(
       setUser: (user) => 
         set({ user, isAuthenticated: true }),
 
-      updateUser: async (updates) => {
+      updateUserProfile: async (updates) => {
         const currentUser = get().user;
         if (!currentUser) return;
 
         const updatedUser = { ...currentUser, ...updates, updatedAt: new Date() };
         set({ user: updatedUser });
 
-        // Update in database
+        // This is where you might also update the database
         try {
           await db.initialize();
-          // Database update logic would go here
+          // Example: await db.updateUser(user);
         } catch (error) {
-          console.error('Failed to update user in database:', error);
+          console.error("Failed to update user in DB:", error);
         }
       },
 
@@ -471,7 +471,8 @@ interface WeightStore {
   // Actions
   addWeightEntry: (weight: number, date: Date, notes?: string) => Promise<void>;
   getWeightEntries: (days?: number) => WeightEntry[];
-  getLatestWeight: () => number | null;
+  getLatestWeight: () => WeightEntry | null;
+  getFirstWeight: () => WeightEntry | null;
   setLoading: (loading: boolean) => void;
 }
 
@@ -501,7 +502,10 @@ export const useWeightStore = create<WeightStore>()(
         set({ entries: newEntries });
 
         // Update user's current weight
-        await useUserStore.getState().updateUser({ currentWeight: weight });
+        const currentUser = useUserStore.getState().user;
+        if (currentUser) {
+          await useUserStore.getState().updateUserProfile({ ...currentUser, currentWeight: weight });
+        }
       },
 
       getWeightEntries: (days = 30) => {
@@ -516,7 +520,12 @@ export const useWeightStore = create<WeightStore>()(
 
       getLatestWeight: () => {
         const { entries } = get();
-        return entries.length > 0 ? entries[0].weight : null;
+        return entries.length > 0 ? entries[0] : null;
+      },
+
+      getFirstWeight: () => {
+        const { entries } = get();
+        return entries.length > 0 ? entries[entries.length - 1] : null;
       },
 
       setLoading: (loading) => set({ isLoading: loading }),

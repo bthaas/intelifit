@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Link } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { MaterialCommunityIcons, Feather, FontAwesome5 } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Feather, FontAwesome5, FontAwesome6 } from '@expo/vector-icons';
 import { PieChart, BarChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -153,7 +153,10 @@ interface NutrientCardProps {
   current: number;
   goal: number;
   unit: string;
-  icon: React.ComponentProps<typeof FontAwesome>['name'];
+  icon: {
+    pack: 'FontAwesome' | 'MaterialCommunityIcons' | 'Feather' | 'FontAwesome5' | 'FontAwesome6';
+    name: string;
+  };
   color: string;
 }
 
@@ -167,7 +170,22 @@ const NutrientCard: React.FC<NutrientCardProps> = ({
   return (
     <View style={[styles.nutrientCard, { backgroundColor: theme.surface }]}>
       <View style={styles.nutrientHeader}>
-        <FontAwesome name={icon} size={20} color={color} />
+        {(() => {
+          switch (icon.pack) {
+            case 'FontAwesome':
+              return <FontAwesome name={icon.name as any} size={20} color={color} />;
+            case 'MaterialCommunityIcons':
+              return <MaterialCommunityIcons name={icon.name as any} size={20} color={color} />;
+            case 'Feather':
+              return <Feather name={icon.name as any} size={20} color={color} />;
+            case 'FontAwesome5':
+              return <FontAwesome5 name={icon.name as any} size={20} color={color} />;
+            case 'FontAwesome6':
+              return <FontAwesome6 name={icon.name as any} size={20} color={color} />;
+            default:
+              return null;
+          }
+        })()}
         <Text style={[styles.nutrientLabel, { color: theme.text }]}>
           {label}
         </Text>
@@ -555,7 +573,7 @@ export default function NutritionScreen() {
               current={totalNutrition.protein}
               goal={macroGoals.protein}
               unit="g"
-              icon="cutlery"
+              icon={{ pack: 'MaterialCommunityIcons', name: 'food-steak' }}
               color="#e74c3c"
             />
             
@@ -564,7 +582,7 @@ export default function NutritionScreen() {
               current={totalNutrition.carbs}
               goal={macroGoals.carbs}
               unit="g"
-              icon="leaf"
+              icon={{ pack: 'MaterialCommunityIcons', name: 'bread-slice' }}
               color="#f39c12"
             />
             
@@ -573,7 +591,7 @@ export default function NutritionScreen() {
               current={totalNutrition.fat}
               goal={macroGoals.fat}
               unit="g"
-              icon="tint"
+              icon={{ pack: 'FontAwesome5', name: 'ice-cream' }}
               color="#9b59b6"
             />
             
@@ -582,7 +600,7 @@ export default function NutritionScreen() {
               current={totalNutrition.fiber}
               goal={macroGoals.fiber}
               unit="g"
-              icon="tree"
+              icon={{ pack: 'MaterialCommunityIcons', name: 'seed' }}
               color="#27ae60"
             />
             
@@ -591,7 +609,7 @@ export default function NutritionScreen() {
               current={totalNutrition.sugar}
               goal={macroGoals.sugar}
               unit="g"
-              icon="heart"
+              icon={{ pack: 'FontAwesome6', name: 'cubes-stacked' }}
               color="#f1c40f"
             />
             
@@ -600,8 +618,8 @@ export default function NutritionScreen() {
               current={totalNutrition.sodium}
               goal={macroGoals.sodium}
               unit="mg"
-              icon="warning"
-              color="#e67e22"
+              icon={{ pack: 'MaterialCommunityIcons', name: 'shaker' }}
+              color={theme.textSecondary}
             />
           </View>
 

@@ -14,7 +14,12 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LineChart } from 'react-native-chart-kit';
 
 import { useAppTheme } from '../../src/components/ui/ThemeProvider';
-import { useWeightStore, useUserStore, useNutritionStore } from '../../src/stores';
+import {
+  useWeightStore,
+  useUserStore,
+  useNutritionStore,
+  useSettingsStore,
+} from '../../src/stores';
 import { NutritionCalculator, DateUtils } from '../../src/utils/calculations';
 
 const screenWidth = Dimensions.get('window').width;
@@ -89,9 +94,11 @@ interface WeightTrendProps {
   weightEntries: Array<{ date: Date; weight: number }>;
   onLogPress: () => void;
   periodLabel: string;
+  displayUnit: 'kg' | 'lbs';
+  convertWeight: (weight: number) => number;
 }
 
-const WeightTrend: React.FC<WeightTrendProps> = ({ weightEntries, onLogPress, periodLabel }) => {
+const WeightTrend: React.FC<WeightTrendProps> = ({ weightEntries, onLogPress, periodLabel, displayUnit, convertWeight }) => {
   const theme = useAppTheme();
 
   if (weightEntries.length === 0) {
@@ -117,7 +124,7 @@ const WeightTrend: React.FC<WeightTrendProps> = ({ weightEntries, onLogPress, pe
   }
 
   const entriesForChart = weightEntries;
-  const dataPoints = entriesForChart.map(entry => entry.weight);
+  const dataPoints = entriesForChart.map(entry => convertWeight(entry.weight));
   
   // Dynamically create labels based on the period to avoid clutter
   const labels = entriesForChart.map((entry, index) => {
@@ -154,6 +161,8 @@ const WeightTrend: React.FC<WeightTrendProps> = ({ weightEntries, onLogPress, pe
     barPercentage: 0.5,
     useShadowColorFromDataset: false,
     decimalPlaces: 1,
+    yAxisLabel: ` ${displayUnit}`,
+    yAxisSuffix: '',
   };
 
   return (
@@ -185,11 +194,49 @@ const WeightTrend: React.FC<WeightTrendProps> = ({ weightEntries, onLogPress, pe
   );
 };
 
+interface WeightJourneyProps {
+  startingWeight: number;
+  currentWeight: number;
+  targetWeight: number;
+  unit: string;
+}
+
+const WeightJourney: React.FC<WeightJourneyProps> = ({ startingWeight, currentWeight, targetWeight, unit }) => {
+  const theme = useAppTheme();
+
+  const isLosingWeight = targetWeight < startingWeight;
+  const totalDifference = Math.abs(startingWeight - targetWeight);
+  const progressMade = isLosingWeight 
+    ? startingWeight - currentWeight 
+    : currentWeight - startingWeight;
+
+  let progress = totalDifference > 0 ? (progressMade / totalDifference) * 100 : 0;
+  progress = Math.max(0, Math.min(progress, 100)); // Clamp between 0 and 100
+
+  return (
+    <View style={[styles.journeyContainer, { backgroundColor: theme.surface }]}>
+      <Text style={[styles.journeyTitle, { color: theme.text }]}>Your Weight Journey</Text>
+      <View style={styles.journeyEndpoints}>
+        <Text style={[styles.journeyEndpointText, { color: theme.textSecondary }]}>{startingWeight.toFixed(1)} {unit}</Text>
+        <Text style={[styles.journeyEndpointText, { color: theme.textSecondary }]}>{targetWeight.toFixed(1)} {unit}</Text>
+      </View>
+      <View style={[styles.progressBarTrack, { backgroundColor: theme.border, marginVertical: 8 }]}>
+        <View style={[styles.progressBarFill, { backgroundColor: theme.primary, width: `${progress}%` }]} />
+        <View style={[styles.progressIndicator, { left: `${progress}%`, borderColor: theme.primary }]} />
+      </View>
+      <Text style={[styles.journeyCurrent, { color: theme.text }]}>
+        Current: {currentWeight.toFixed(1)} {unit} ({progress.toFixed(0)}% to goal)
+      </Text>
+    </View>
+  );
+};
+
 export default function ProgressScreen() {
   const theme = useAppTheme();
   const { user } = useUserStore();
-  const { entries: weightEntries, getLatestWeight, addWeightEntry } = useWeightStore();
-  const { dailyEntries, currentDate } = useNutritionStore();
+  const { entries: weightEntries, getLatestWeight, addWeightEntry, getFirstWeight } = useWeightStore();
+  const { dailyEntries } = useNutritionStore();
+  const { units } = useSettingsStore();
 
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year'>('week');
   const [isModalVisible, setModalVisible] = useState(false);
@@ -237,7 +284,8 @@ export default function ProgressScreen() {
   }, [selectedPeriod, sortedWeightEntries, dailyEntries]);
 
 
-  const currentWeight = getLatestWeight() || user?.currentWeight || 0;
+  const currentWeight = getLatestWeight()?.weight || user?.currentWeight || 0;
+  const startingWeight = getFirstWeight()?.weight || currentWeight;
   const targetWeight = user?.goals.targetWeight || 0;
   const goalType = user?.goals.goalType || 'maintain';
 
@@ -300,8 +348,10 @@ export default function ProgressScreen() {
       return;
     }
 
+    const weightInKg = units === 'imperial' ? NutritionCalculator.convertWeight(weight, 'lbs', 'kg') : weight;
+
     try {
-      await addWeightEntry(weight, new Date());
+      await addWeightEntry(weightInKg, new Date());
       setNewWeight('');
       setModalVisible(false);
       Alert.alert('Success', 'Your weight has been logged.');
@@ -322,6 +372,11 @@ export default function ProgressScreen() {
       </View>
     );
   }
+
+  const displayUnit = units === 'imperial' ? 'lbs' : 'kg';
+  const convertDisplayWeight = (weight: number) => {
+    return units === 'imperial' ? NutritionCalculator.convertWeight(weight, 'kg', 'lbs') : weight;
+  };
 
   return (
     <>
@@ -351,9 +406,9 @@ export default function ProgressScreen() {
         <View style={styles.overviewGrid}>
           <ProgressCard
             title="Current Weight"
-            current={currentWeight}
+            current={convertDisplayWeight(currentWeight)}
             goal={0}
-            unit="kg"
+            unit={displayUnit}
             icon="balance-scale"
             color={theme.primary}
             showProgress={false}
@@ -397,7 +452,19 @@ export default function ProgressScreen() {
           weightEntries={filteredWeightEntries} 
           onLogPress={() => setModalVisible(true)}
           periodLabel={periodLabel}
+          displayUnit={displayUnit}
+          convertWeight={convertDisplayWeight}
         />
+
+        {/* Weight Journey */}
+        {targetWeight > 0 && startingWeight > 0 && (
+          <WeightJourney 
+            startingWeight={convertDisplayWeight(startingWeight)}
+            currentWeight={convertDisplayWeight(currentWeight)}
+            targetWeight={convertDisplayWeight(targetWeight)}
+            unit={displayUnit}
+          />
+        )}
 
         {/* Recent Weight Entries */}
         <View style={[styles.entriesContainer, { backgroundColor: theme.surface }]}>
@@ -417,7 +484,7 @@ export default function ProgressScreen() {
               <View key={entry.id} style={styles.weightEntry}>
                 <View style={styles.weightEntryInfo}>
                   <Text style={[styles.weightEntryWeight, { color: theme.text }]}>
-                    {entry.weight.toFixed(1)} kg
+                    {convertDisplayWeight(entry.weight).toFixed(1)} {displayUnit}
                   </Text>
                   <Text style={[styles.weightEntryDate, { color: theme.textSecondary }]}>
                     {DateUtils.formatDate(entry.date)}
@@ -446,7 +513,7 @@ export default function ProgressScreen() {
             <Text style={[styles.modalTitle, { color: theme.text }]}>Log Your Weight</Text>
             <TextInput
               style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-              placeholder="Enter weight in kg"
+              placeholder={`Enter weight in ${displayUnit}`}
               placeholderTextColor={theme.textSecondary}
               keyboardType="numeric"
               value={newWeight}
@@ -697,5 +764,42 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 14,
+  },
+  journeyContainer: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+  },
+  journeyTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  journeyEndpoints: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  journeyEndpointText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  progressIndicator: {
+    position: 'absolute',
+    top: -4,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#ffffff',
+    borderWidth: 3,
+    transform: [{ translateX: -7 }], // Center the indicator on the line
+  },
+  journeyCurrent: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });
