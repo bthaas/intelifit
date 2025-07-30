@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "paths": {
+    "/transcribe": {
+      "name": "/transcribe",
+      "lambdaFunction": "processV",
+      "permissions": {
+        "setting": "private",
+        "auth": [
+          "create"
+        ]
+      }
+    }
+  }
+}

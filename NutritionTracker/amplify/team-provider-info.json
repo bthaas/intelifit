@@ -1,0 +1,38 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-tthree-dev-025e2-authRole",
+      "UnauthRoleArn": "arn:aws:iam::277995473511:role/amplify-tthree-dev-025e2-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::277995473511:role/amplify-tthree-dev-025e2-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-tthree-dev-025e2-deployment",
+      "UnauthRoleName": "amplify-tthree-dev-025e2-unauthRole",
+      "StackName": "amplify-tthree-dev-025e2",
+      "StackId": "arn:aws:cloudformation:us-east-1:277995473511:stack/amplify-tthree-dev-025e2/c2348b60-52bf-11f0-9110-0afff60a8d81",
+      "AmplifyAppId": "dfgjunh0q9phv",
+      "APIGatewayAuthURL": "https://s3.amazonaws.com/amplify-tthree-dev-025e2-deployment/amplify-cfn-templates/api/APIGatewayAuthStack.json"
+    },
+    "categories": {
+      "function": {
+        "processV": {
+          "cognitoClientId": "7tv7qthj4qnjqoss49rsh1qemd",
+          "cognitoUserPoolId": "us-east-1_5AQYHXBd0",
+          "secretsPathAmplifyAppId": "dfgjunh0q9phv",
+          "deploymentBucketName": "amplify-tthree-dev-025e2-deployment",
+          "s3Key": "amplify-builds/processV-306475704652676c6455-build.zip"
+        },
+        "authHandler": {
+          "deploymentBucketName": "amplify-tthree-dev-025e2-deployment",
+          "s3Key": "amplify-builds/authHandler-4d4e42436a2b4f576846-build.zip"
+        }
+      },
+      "auth": {
+        "auth1": {}
+      },
+      "api": {
+        "transcribe": {},
+        "api843872b6": {}
+      }
+    }
+  }
+}

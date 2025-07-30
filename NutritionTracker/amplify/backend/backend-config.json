@@ -1,0 +1,117 @@
+{
+  "api": {
+    "foodTranscriptionAPI": {
+      "dependsOn": [
+        {
+          "attributes": [
+            "Name",
+            "Arn"
+          ],
+          "category": "function",
+          "resourceName": "processV"
+        }
+      ],
+      "providerPlugin": "awscloudformation",
+      "service": "API Gateway"
+    }
+  },
+  "auth": {
+    "auth1": {
+      "customAuth": false,
+      "dependsOn": [],
+      "frontendAuthConfig": {
+        "mfaConfiguration": "OFF",
+        "mfaTypes": [
+          "SMS"
+        ],
+        "passwordProtectionSettings": {
+          "passwordPolicyCharacters": [],
+          "passwordPolicyMinLength": 8
+        },
+        "signupAttributes": [
+          "EMAIL"
+        ],
+        "socialProviders": [],
+        "usernameAttributes": [
+          "EMAIL"
+        ],
+        "verificationMechanisms": [
+          "EMAIL"
+        ]
+      },
+      "providerPlugin": "awscloudformation",
+      "service": "Cognito"
+    }
+  },
+  "function": {
+    "authHandler": {
+      "build": true,
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    },
+    "processV": {
+      "build": true,
+      "dependsOn": [],
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    }
+  },
+  "parameters": {
+    "AMPLIFY_function_authHandler_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "authHandler"
+        }
+      ]
+    },
+    "AMPLIFY_function_authHandler_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "authHandler"
+        }
+      ]
+    },
+    "AMPLIFY_function_processV_cognitoClientId": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "processV"
+        }
+      ]
+    },
+    "AMPLIFY_function_processV_cognitoUserPoolId": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "processV"
+        }
+      ]
+    },
+    "AMPLIFY_function_processV_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "processV"
+        }
+      ]
+    },
+    "AMPLIFY_function_processV_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "processV"
+        }
+      ]
+    },
+    "AMPLIFY_function_processV_secretsPathAmplifyAppId": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "processV"
+        }
+      ]
+    }
+  }
+}

@@ -1,35 +1,10 @@
-import { Amplify } from 'aws-amplify';
+import { Amplify, API } from 'aws-amplify';
 import * as ImagePicker from 'expo-image-picker';
 import * as Camera from 'expo-camera';
 import * as BarcodeScanner from 'expo-barcode-scanner';
 import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
 import { FoodItem } from '../types';
-
-// Temporary mock API until we set up Amplify properly
-const mockAPI = {
-  post: async (apiName: string, path: string, options: any) => {
-    // Mock response for now
-    return {
-      success: true,
-      foodName: 'Mock Food Item',
-      brand: 'Mock Brand',
-      category: 'other',
-      nutrition: {
-        calories: 150,
-        protein: 10,
-        carbs: 20,
-        fat: 5,
-        fiber: 2,
-        sugar: 5,
-        sodium: 100,
-        cholesterol: 0,
-      },
-      servingSize: 100,
-      confidence: 0.8,
-    };
-  }
-};
 
 export interface FoodInputResult {
   success: boolean;
@@ -167,6 +142,9 @@ export class FoodInputService {
 
   // Text input processing
   async processTextInput(text: string): Promise<FoodInputResult> {
+    if (!text.trim()) {
+      return { success: false, error: 'Input is empty' };
+    }
     try {
       const result = await this.callFoodTranscriptionLambda({
         inputType: 'text',
@@ -233,20 +211,29 @@ export class FoodInputService {
     content: string;
   }): Promise<any> {
     try {
-      // Use mock API for now until we set up Amplify properly
-      const response = await mockAPI.post('foodTranscriptionAPI', '/transcribe', {
+      const response = await API.post('foodTranscriptionAPI', '/transcribe', {
         body: payload,
       });
       return response;
     } catch (error) {
-      throw new Error(`Lambda API error: ${error}`);
+      console.error('Lambda API error:', error);
+      if (error.response) {
+        console.error('Error data:', error.response.data);
+        console.error('Error status:', error.response.status);
+        console.error('Error headers:', error.response.headers);
+      } else if (error.request) {
+        console.error('Error request:', error.request);
+      } else {
+        console.error('Error message:', error.message);
+      }
+      return { success: false, error: 'Lambda API call failed' };
     }
   }
 
   private parseLambdaResponse(response: any): FoodInputResult {
     try {
-      if (!response.success) {
-        return { success: false, error: response.error || 'Unknown error' };
+      if (!response || !response.success) {
+        return { success: false, error: response?.error || 'Unknown error from Lambda' };
       }
 
       const foodItem: FoodItem = {
@@ -318,6 +305,7 @@ export class FoodInputService {
         language: 'en',
         pitch: 1,
         rate: 0.9,
+        volume: 1.0,
       });
     } catch (error) {
       console.error('Speech error:', error);
@@ -325,4 +313,4 @@ export class FoodInputService {
   }
 }
 
-export const foodInputService = FoodInputService.getInstance(); 
+export const foodInputService = FoodInputService.getInstance();

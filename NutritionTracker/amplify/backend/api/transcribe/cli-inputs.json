@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "paths": {
+    "/process-voice": {
+      "name": "/process-voice",
+      "lambdaFunction": "processV",
+      "permissions": {
+        "setting": "private",
+        "auth": [
+          "create",
+          "read",
+          "update",
+          "delete"
+        ]
+      }
+    },
+    "/register": {
+      "name": "/register",
+      "lambdaFunction": "authHandler",
+      "permissions": {
+        "setting": "open"
+      }
+    },
+    "/verify": {
+      "name": "/verify",
+      "lambdaFunction": "authHandler",
+      "permissions": {
+        "setting": "open"
+      }
+    },
+    "/login": {
+      "name": "/login",
+      "lambdaFunction": "authHandler",
+      "permissions": {
+        "setting": "open"
+      }
+    }
+  }
+}
