@@ -148,7 +148,8 @@ Return as JSON in this exact format:
       "carbs": "Xg", 
       "fat": "Xg",
       "fiber": "Xg",
-      "sugar": "Xg"
+      "sugar": "Xg",
+      "sodium": "Xmg"
     }
   ]
 }`
@@ -193,7 +194,8 @@ Return nutritional information as a single JSON object in this exact format:
       "carbs": "Xg",
       "fat": "Xg", 
       "fiber": "Xg",
-      "sugar": "Xg"
+      "sugar": "Xg",
+      "sodium": "Xmg"
     }
   ]
 }`
@@ -245,7 +247,8 @@ Return nutritional information as a single JSON object in this exact format:
                     carbs: "15g",
                     fat: "3g",
                     fiber: "1g",
-                    sugar: "2g"
+                    sugar: "2g",
+                    sodium: "150mg"
                 }],
                 debug_info: {
                     raw_response: responseBody,
@@ -267,7 +270,8 @@ Return nutritional information as a single JSON object in this exact format:
                     carbs: "20g",
                     fat: "5g",
                     fiber: "2g",
-                    sugar: "3g"
+                    sugar: "3g",
+                    sodium: "200mg"
                 }],
                 debug_info: {
                     raw_response: responseBody,

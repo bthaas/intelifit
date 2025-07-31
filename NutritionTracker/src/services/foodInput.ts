@@ -290,7 +290,7 @@ export class FoodInputService {
           fat: parseFloat(item.fat) || 0,
           fiber: parseFloat(item.fiber) || 0,
           sugar: parseFloat(item.sugar) || 0,
-          sodium: 0, 
+          sodium: parseFloat(item.sodium) || 0, 
           cholesterol: 0,
         },
         servingSizes: [

@@ -40,7 +40,8 @@ export default function AddFoodScreen() {
   const [voiceText, setVoiceText] = useState('');
   const [textInput, setTextInput] = useState('');
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
-  const [quantity, setQuantity] = useState('100');
+  const [quantity, setQuantity] = useState('1');
+  const [editableCalories, setEditableCalories] = useState<string>('');
   const [selectedMeal, setSelectedMeal] = useState<MealType>('breakfast');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +59,18 @@ export default function AddFoodScreen() {
     { value: 'dinner', label: 'Dinner', icon: { pack: 'FontAwesome', name: 'moon-o' } },
     { value: 'snack', label: 'Snack', icon: { pack: 'MaterialCommunityIcons', name: 'fruit-cherries' } },
   ];
+
+  // Helper function to set selected food and initialize editable calories
+  const setSelectedFoodWithCalories = (foodItem: FoodItem | null) => {
+    setSelectedFood(foodItem);
+    if (foodItem) {
+      // Initialize editable calories based on the serving size from AI
+      const servingCalories = foodItem.nutritionPer100g.calories;
+      setEditableCalories(servingCalories.toString());
+    } else {
+      setEditableCalories('');
+    }
+  };
 
   // --- Input Handlers ---
   const handleVoiceInput = async () => {
@@ -102,7 +115,7 @@ export default function AddFoodScreen() {
         result = await foodInputService.scanBarcode();
       }
       if (result && result.success && result.foodItem) {
-        setSelectedFood(result.foodItem);
+        setSelectedFoodWithCalories(result.foodItem);
       } else {
         setError(result?.error || 'Photo input failed');
       }
@@ -117,7 +130,7 @@ export default function AddFoodScreen() {
     try {
       const result = await foodInputService.processTextInput(textInput);
       if (result.success && result.foodItem) {
-        setSelectedFood(result.foodItem);
+        setSelectedFoodWithCalories(result.foodItem);
       } else {
         setError(result.error || 'Text input failed');
       }
@@ -137,7 +150,7 @@ export default function AddFoodScreen() {
         result = await foodInputService.processTextInput(content);
       }
       if (result && result.success && result.foodItem) {
-        setSelectedFood(result.foodItem);
+        setSelectedFoodWithCalories(result.foodItem);
       } else {
         setError(result?.error || 'Input failed');
       }
@@ -154,33 +167,42 @@ export default function AddFoodScreen() {
       return;
     }
     const quantityNum = parseFloat(quantity);
+    const caloriesNum = parseFloat(editableCalories);
     if (isNaN(quantityNum) || quantityNum <= 0) {
-      Alert.alert('Error', 'Please enter a valid quantity');
+      Alert.alert('Error', 'Please enter a valid serving amount');
+      return;
+    }
+    if (isNaN(caloriesNum) || caloriesNum < 0) {
+      Alert.alert('Error', 'Please enter valid calories');
       return;
     }
     try {
+      // Calculate nutrition based on user-edited calories and serving quantity
+      const originalCaloriesPerServing = selectedFood.nutritionPer100g.calories;
+      const calorieRatio = originalCaloriesPerServing > 0 ? caloriesNum / originalCaloriesPerServing : 1;
+      
       const consumedFood: ConsumedFood = {
         id: `consumed-${Date.now()}`,
         foodItem: selectedFood,
         quantity: quantityNum,
         servingSize: selectedFood.servingSizes[0],
         nutritionConsumed: {
-          calories: Math.round((selectedFood.nutritionPer100g.calories * quantityNum) / 100),
-          protein: Math.round((selectedFood.nutritionPer100g.protein * quantityNum) / 100),
-          carbs: Math.round((selectedFood.nutritionPer100g.carbs * quantityNum) / 100),
-          fat: Math.round((selectedFood.nutritionPer100g.fat * quantityNum) / 100),
-          fiber: Math.round((selectedFood.nutritionPer100g.fiber * quantityNum) / 100),
-          sugar: Math.round((selectedFood.nutritionPer100g.sugar * quantityNum) / 100),
-          sodium: Math.round((selectedFood.nutritionPer100g.sodium * quantityNum) / 100),
-          cholesterol: Math.round((selectedFood.nutritionPer100g.cholesterol * quantityNum) / 100),
+          calories: Math.round(caloriesNum * quantityNum),
+          protein: Math.round(selectedFood.nutritionPer100g.protein * calorieRatio * quantityNum),
+          carbs: Math.round(selectedFood.nutritionPer100g.carbs * calorieRatio * quantityNum),
+          fat: Math.round(selectedFood.nutritionPer100g.fat * calorieRatio * quantityNum),
+          fiber: Math.round(selectedFood.nutritionPer100g.fiber * calorieRatio * quantityNum),
+          sugar: Math.round(selectedFood.nutritionPer100g.sugar * calorieRatio * quantityNum),
+          sodium: Math.round(selectedFood.nutritionPer100g.sodium * calorieRatio * quantityNum),
+          cholesterol: Math.round(selectedFood.nutritionPer100g.cholesterol * calorieRatio * quantityNum),
         },
       };
       await addFoodEntry(selectedMeal, consumedFood);
       addToRecent(selectedFood);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       Alert.alert('Success', `${selectedFood.name} added to ${selectedMeal}!`);
-      setSelectedFood(null);
-      setQuantity('100');
+      setSelectedFoodWithCalories(null);
+      setQuantity('1');
       setVoiceText('');
       setTextInput('');
     } catch (error) {
@@ -345,9 +367,14 @@ export default function AddFoodScreen() {
                     {selectedFood.brand}
                   </Text>
                 )}
-                <Text style={[styles.foodNutrition, { color: theme.textSecondary }]}>
-                  {selectedFood.nutritionPer100g.calories} cal per 100g
-                </Text>
+                <View style={styles.nutritionDisplay}>
+                  <Text style={[styles.foodNutrition, { color: theme.textSecondary }]}>
+                    Protein: {selectedFood.nutritionPer100g.protein}g | Carbs: {selectedFood.nutritionPer100g.carbs}g | Fat: {selectedFood.nutritionPer100g.fat}g
+                  </Text>
+                  <Text style={[styles.foodNutrition, { color: theme.textSecondary }]}>
+                    Fiber: {selectedFood.nutritionPer100g.fiber}g | Sugar: {selectedFood.nutritionPer100g.sugar}g | Sodium: {selectedFood.nutritionPer100g.sodium}mg
+                  </Text>
+                </View>
               </View>
               
               <Pressable
@@ -362,17 +389,30 @@ export default function AddFoodScreen() {
               </Pressable>
             </View>
 
-            {/* Quantity Input */}
-            <View style={styles.quantityContainer}>
-              <Text style={[styles.label, { color: theme.text }]}>Quantity (g)</Text>
-              <TextInput
-                style={[styles.quantityInput, { backgroundColor: theme.surface, color: theme.text }]}
-                value={quantity}
-                onChangeText={setQuantity}
-                keyboardType="numeric"
-                placeholder="100"
-                placeholderTextColor={theme.textSecondary}
-              />
+            {/* Serving Size and Calories */}
+            <View style={styles.inputRow}>
+              <View style={styles.inputContainer}>
+                <Text style={[styles.label, { color: theme.text }]}>Servings</Text>
+                <TextInput
+                  style={[styles.quantityInput, { backgroundColor: theme.surface, color: theme.text }]}
+                  value={quantity}
+                  onChangeText={setQuantity}
+                  keyboardType="numeric"
+                  placeholder="1"
+                  placeholderTextColor={theme.textSecondary}
+                />
+              </View>
+              <View style={styles.inputContainer}>
+                <Text style={[styles.label, { color: theme.text }]}>Calories</Text>
+                <TextInput
+                  style={[styles.quantityInput, { backgroundColor: theme.surface, color: theme.text }]}
+                  value={editableCalories}
+                  onChangeText={setEditableCalories}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={theme.textSecondary}
+                />
+              </View>
             </View>
 
             {/* Meal Selection */}
@@ -441,7 +481,7 @@ export default function AddFoodScreen() {
                 <Pressable
                   key={item.id}
                   style={[styles.quickAddButton, { backgroundColor: theme.surface }]}
-                  onPress={() => setSelectedFood(item)}
+                  onPress={() => setSelectedFoodWithCalories(item)}
                 >
                   <FontAwesome name="plus" size={16} color={theme.primary} />
                   <Text style={[styles.quickAddText, { color: theme.text }]}>
@@ -466,7 +506,7 @@ export default function AddFoodScreen() {
                 <Pressable
                   key={item.id}
                   style={[styles.quickAddButton, { backgroundColor: theme.surface }]}
-                  onPress={() => setSelectedFood(item)}
+                  onPress={() => setSelectedFoodWithCalories(item)}
                   onLongPress={() => handleRemoveFavorite(item)}
                 >
                   <FontAwesome name="heart" size={16} color={theme.primary} />
@@ -656,6 +696,17 @@ const styles = StyleSheet.create({
   },
   quantityContainer: {
     marginBottom: 16,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  inputContainer: {
+    flex: 1,
+  },
+  nutritionDisplay: {
+    marginTop: 8,
   },
   label: {
     fontSize: 16,
