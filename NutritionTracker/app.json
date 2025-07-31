@@ -21,7 +21,8 @@
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to let you select images for food tracking.",
         "NSCameraUsageDescription": "This app needs access to your camera to let you take photos of food for tracking.",
         "NSMicrophoneUsageDescription": "This app needs access to your microphone for audio recording features."
-      }
+      },
+      "bundleIdentifier": "com.bthaas.NutritionTracker"
     },
     "android": {
       "adaptiveIcon": {
@@ -29,11 +30,12 @@
         "backgroundColor": "#ffffff"
       },
       "permissions": [
-        "CAMERA",
-        "RECORD_AUDIO",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ]
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "package": "com.bthaas.NutritionTracker"
     },
     "web": {
       "bundler": "metro",

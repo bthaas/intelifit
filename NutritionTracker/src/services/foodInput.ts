@@ -5,6 +5,8 @@ import * as Camera from 'expo-camera';
 import * as BarcodeScanner from 'expo-barcode-scanner';
 import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { FoodItem } from '../types';
 
 export interface FoodInputResult {
@@ -243,12 +245,24 @@ export class FoodInputService {
       return responseBody;
     } catch (error) {
         console.error('Lambda API error:', error);
+        
+        // Handle different types of errors
         if (error && typeof error === 'object' && 'response' in error) {
-            const errorBody = await (error as any).response.body.json();
-            console.error('Lambda error details:', errorBody);
-            return { success: false, error: 'Lambda API call failed', details: errorBody };
+            try {
+                const errorResponse = (error as any).response;
+                if (errorResponse && errorResponse.body && typeof errorResponse.body.json === 'function') {
+                    const errorBody = await errorResponse.body.json();
+                    console.error('Lambda error details:', errorBody);
+                    return { success: false, error: 'Lambda API call failed', details: errorBody };
+                }
+            } catch (parseError) {
+                console.error('Error parsing error response:', parseError);
+            }
         }
-        return { success: false, error: 'Lambda API call failed' };
+        
+        // Fallback error message
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return { success: false, error: `Lambda API call failed: ${errorMessage}` };
     }
   }
 
@@ -303,8 +317,31 @@ export class FoodInputService {
   }
 
   private async imageToBase64(uri: string): Promise<string> {
-    // This is a placeholder
-    return 'base64_placeholder_string';
+    try {
+      // First, resize and compress the image to make it suitable for OpenAI API
+      const manipulatedImage = await ImageManipulator.manipulateAsync(
+        uri,
+        [
+          // Resize to max 1024px on the larger side to keep file size manageable
+          { resize: { width: 1024 } }
+        ],
+        {
+          compress: 0.7, // Compress to 70% quality
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true, // Get base64 directly
+        }
+      );
+
+      if (!manipulatedImage.base64) {
+        throw new Error('Failed to convert image to base64');
+      }
+
+      // Return the base64 string (without data:image/jpeg;base64, prefix)
+      return manipulatedImage.base64;
+    } catch (error) {
+      console.error('Error converting image to base64:', error);
+      throw new Error(`Image conversion failed: ${error}`);
+    }
   }
 
   private async audioToBase64(uri: string): Promise<string> {
