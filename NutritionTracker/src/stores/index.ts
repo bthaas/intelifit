@@ -17,6 +17,27 @@ import {
 import { db } from '../database';
 import { NutritionCalculator, DateUtils } from '../utils/calculations';
 
+// Custom storage with reviver
+const storage = {
+  getItem: async (name: string) => {
+    const str = await AsyncStorage.getItem(name);
+    if (!str) return null;
+        return JSON.parse(str, (key, value) => {
+      const dateKeys = ['date', 'createdAt', 'updatedAt', 'timestamp'];
+      if (dateKeys.includes(key) && typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/.test(value)) {
+        return new Date(value);
+      }
+      return value;
+    });
+  },
+  setItem: (name: string, value: any) => {
+    return AsyncStorage.setItem(name, JSON.stringify(value));
+  },
+  removeItem: (name: string) => {
+    return AsyncStorage.removeItem(name);
+  },
+};
+
 // User Store
 interface UserStore {
   user: UserProfile | null;
@@ -74,7 +95,7 @@ export const useUserStore = create<UserStore>()(
     }),
     {
       name: 'user-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => storage),
       partialize: (state) => ({ 
         user: state.user, 
         isAuthenticated: state.isAuthenticated,
@@ -315,7 +336,7 @@ export const useNutritionStore = create<NutritionStore>()(
     }),
     {
       name: 'nutrition-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => storage),
       partialize: (state) => ({
         dailyEntries: state.dailyEntries,
         favorites: state.favorites,
@@ -455,7 +476,7 @@ export const useWorkoutStore = create<WorkoutStore>()(
     }),
     {
       name: 'workout-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => storage),
       partialize: (state) => ({
         workouts: state.workouts,
       }),
@@ -532,7 +553,7 @@ export const useWeightStore = create<WeightStore>()(
     }),
     {
       name: 'weight-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => storage),
       partialize: (state) => ({
         entries: state.entries,
       }),
@@ -580,7 +601,7 @@ export const useSettingsStore = create<SettingsStore>()(
     }),
     {
       name: 'settings-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => storage),
     }
   )
 );

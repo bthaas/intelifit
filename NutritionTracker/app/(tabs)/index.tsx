@@ -11,7 +11,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome, MaterialCommunityIcons, Feather, FontAwesome5 } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '../../src/components/ui/ThemeProvider';
 import { useNutritionStore } from '../../src/stores';
@@ -32,7 +32,7 @@ const PHOTO_OPTIONS = [
 
 export default function AddFoodScreen() {
   const theme = useAppTheme();
-  const { addFoodEntry, addToFavorites, addToRecent } = useNutritionStore();
+  const { addFoodEntry, addToRecent, recentFoods, favorites, addToFavorites } = useNutritionStore();
 
   const [inputMode, setInputMode] = useState<'voice' | 'photo' | 'text'>('voice');
   const [photoOption, setPhotoOption] = useState<'camera' | 'gallery' | 'barcode'>('camera');
@@ -45,11 +45,18 @@ export default function AddFoodScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const mealTypes: Array<{ value: MealType; label: string; icon: string }> = [
-    { value: 'breakfast', label: 'Breakfast', icon: 'sun-o' },
-    { value: 'lunch', label: 'Lunch', icon: 'clock-o' },
-    { value: 'dinner', label: 'Dinner', icon: 'moon-o' },
-    { value: 'snack', label: 'Snack', icon: 'apple' },
+    const mealTypes: Array<{
+    value: MealType;
+    label: string;
+    icon: {
+      pack: 'FontAwesome' | 'MaterialCommunityIcons' | 'Feather' | 'FontAwesome5';
+      name: string;
+    }
+  }> = [
+    { value: 'breakfast', label: 'Breakfast', icon: { pack: 'Feather', name: 'sun' } },
+    { value: 'lunch', label: 'Lunch', icon: { pack: 'FontAwesome5', name: 'cloud-sun' } },
+    { value: 'dinner', label: 'Dinner', icon: { pack: 'FontAwesome', name: 'moon-o' } },
+    { value: 'snack', label: 'Snack', icon: { pack: 'MaterialCommunityIcons', name: 'fruit-cherries' } },
   ];
 
   // --- Input Handlers ---
@@ -328,9 +335,9 @@ export default function AddFoodScreen() {
               <Pressable
                 style={[styles.favoriteButton, { backgroundColor: theme.primary }]}
                 onPress={() => {
-                  // This button is for favorites, but the input modes handle adding to log
-                  // For now, it's a placeholder.
-                  Alert.alert('Info', 'This button is for favorites, not adding to log.');
+                  addToFavorites(selectedFood);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  Alert.alert('Favorited!', `${selectedFood.name} has been added to your favorites.`);
                 }}
               >
                 <FontAwesome name="heart" size={16} color="#ffffff" />
@@ -355,7 +362,7 @@ export default function AddFoodScreen() {
               <Text style={[styles.label, { color: theme.text }]}>Meal</Text>
               <View style={styles.mealButtons}>
                 {mealTypes.map((meal) => (
-                  <Pressable
+                                    <Pressable
                     key={meal.value}
                     style={[
                       styles.mealButton,
@@ -364,11 +371,22 @@ export default function AddFoodScreen() {
                     ]}
                     onPress={() => setSelectedMeal(meal.value)}
                   >
-                    <FontAwesome 
-                      name={meal.icon as any} 
-                      size={16} 
-                      color={selectedMeal === meal.value ? '#ffffff' : theme.textSecondary} 
-                    />
+                    {(() => {
+                      const iconInfo = meal.icon;
+                      const color = selectedMeal === meal.value ? '#ffffff' : theme.textSecondary;
+                      switch (iconInfo.pack) {
+                        case 'FontAwesome':
+                          return <FontAwesome name={iconInfo.name as any} size={16} color={color} />;
+                        case 'MaterialCommunityIcons':
+                          return <MaterialCommunityIcons name={iconInfo.name as any} size={16} color={color} />;
+                        case 'Feather':
+                          return <Feather name={iconInfo.name as any} size={16} color={color} />;
+                        case 'FontAwesome5':
+                          return <FontAwesome5 name={iconInfo.name as any} size={16} color={color} />;
+                        default:
+                          return null;
+                      }
+                    })()}
                     <Text style={[
                       styles.mealButtonText,
                       { color: selectedMeal === meal.value ? '#ffffff' : theme.text }
@@ -399,23 +417,48 @@ export default function AddFoodScreen() {
             Quick Add
           </Text>
           
+                    <View style={styles.quickAddGrid}>
+            {recentFoods.length > 0 ? (
+              recentFoods.map((item) => (
+                <Pressable
+                  key={item.id}
+                  style={[styles.quickAddButton, { backgroundColor: theme.surface }]}
+                  onPress={() => setSelectedFood(item)}
+                >
+                  <FontAwesome name="plus" size={16} color={theme.primary} />
+                  <Text style={[styles.quickAddText, { color: theme.text }]}>
+                    {item.name}
+                  </Text>
+                </Pressable>
+              ))
+            ) : (
+              <Text style={{ color: theme.textSecondary }}>No recent foods to show. Add some food to see them here!</Text>
+            )}
+                    </View>
+        </View>
+
+        {/* Favorites Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            Favorites
+          </Text>
           <View style={styles.quickAddGrid}>
-            {['Water', 'Coffee', 'Apple', 'Banana'].map((item) => (
-              <Pressable
-                key={item}
-                style={[styles.quickAddButton, { backgroundColor: theme.surface }]}
-                onPress={() => {
-                  setTextInput(item);
-                  setInputMode('text');
-                  handleTextInput();
-                }}
-              >
-                <FontAwesome name="plus" size={16} color={theme.primary} />
-                <Text style={[styles.quickAddText, { color: theme.text }]}>
-                  {item}
-                </Text>
-              </Pressable>
-            ))}
+            {favorites.length > 0 ? (
+              favorites.map((item) => (
+                <Pressable
+                  key={item.id}
+                  style={[styles.quickAddButton, { backgroundColor: theme.surface }]}
+                  onPress={() => setSelectedFood(item)}
+                >
+                  <FontAwesome name="heart" size={16} color={theme.primary} />
+                  <Text style={[styles.quickAddText, { color: theme.text }]}>
+                    {item.name}
+                  </Text>
+                </Pressable>
+              ))
+            ) : (
+              <Text style={{ color: theme.textSecondary }}>You have no favorite foods yet. Tap the heart icon on a selected food to add it.</Text>
+            )}
           </View>
         </View>
       </ScrollView>

@@ -13,6 +13,9 @@
     },
     "transcribe": {
       "Type": "String"
+    },
+    "api843872b6": {
+      "Type": "String"
     }
   },
   "Conditions": {

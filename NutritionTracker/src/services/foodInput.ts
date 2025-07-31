@@ -1,4 +1,5 @@
-import { Amplify, API } from 'aws-amplify';
+import { Amplify } from 'aws-amplify';
+import { post } from 'aws-amplify/api';
 import * as ImagePicker from 'expo-image-picker';
 import * as Camera from 'expo-camera';
 import * as BarcodeScanner from 'expo-barcode-scanner';
@@ -211,60 +212,76 @@ export class FoodInputService {
     content: string;
   }): Promise<any> {
     try {
-      const response = await API.post('foodTranscriptionAPI', '/transcribe', {
-        body: payload,
-      });
-      return response;
-    } catch (error) {
-      console.error('Lambda API error:', error);
-      if (error.response) {
-        console.error('Error data:', error.response.data);
-        console.error('Error status:', error.response.status);
-        console.error('Error headers:', error.response.headers);
-      } else if (error.request) {
-        console.error('Error request:', error.request);
+      console.log('Calling Lambda with payload:', JSON.stringify(payload, null, 2));
+
+      let body = {};
+      if (payload.inputType === 'text' || payload.inputType === 'audio') {
+        body = { transcription: payload.content };
+      } else if (payload.inputType === 'image') {
+        body = { base64Image: payload.content };
       } else {
-        console.error('Error message:', error.message);
+        // Handle barcode or other types if necessary
+        body = { content: payload.content };
       }
-      return { success: false, error: 'Lambda API call failed' };
+
+      const restOperation = post({
+        apiName: 'api843872b6',
+        path: '/transcribe',
+        options: {
+          body,
+        },
+      });
+
+      const response = await restOperation.response;
+      
+      console.log('Lambda response status:', response.statusCode);
+      const responseBody = await response.body.json();
+      console.log('Lambda response body:', JSON.stringify(responseBody, null, 2));
+
+      return responseBody;
+    } catch (error) {
+        console.error('Lambda API error:', error);
+        if (error.response) {
+            const errorBody = await error.response.body.json();
+            console.error('Lambda error details:', errorBody);
+            return { success: false, error: 'Lambda API call failed', details: errorBody };
+        }
+        return { success: false, error: 'Lambda API call failed' };
     }
   }
 
   private parseLambdaResponse(response: any): FoodInputResult {
     try {
-      if (!response || !response.success) {
-        return { success: false, error: response?.error || 'Unknown error from Lambda' };
+      if (!response || !response.items || response.items.length === 0) {
+        return { success: false, error: response?.debug_info?.error || 'No items found in response' };
       }
+
+      // For simplicity, we'll just take the first item
+      const item = response.items[0];
 
       const foodItem: FoodItem = {
         id: `custom-${Date.now()}`,
-        name: response.foodName || 'Unknown Food',
-        brand: response.brand || null,
-        category: response.category || 'other',
-        barcode: response.barcode || null,
-        imageUrl: response.imageUrl || undefined,
+        name: item.name || 'Unknown Food',
+        brand: item.brand || null,
+        category: item.category || 'other',
+        barcode: null,
+        imageUrl: undefined,
         isCustom: true,
         nutritionPer100g: {
-          calories: response.nutrition?.calories || 0,
-          protein: response.nutrition?.protein || 0,
-          carbs: response.nutrition?.carbs || 0,
-          fat: response.nutrition?.fat || 0,
-          fiber: response.nutrition?.fiber || 0,
-          sugar: response.nutrition?.sugar || 0,
-          sodium: response.nutrition?.sodium || 0,
-          cholesterol: response.nutrition?.cholesterol || 0,
+          calories: item.calories || 0,
+          protein: parseFloat(item.protein) || 0,
+          carbs: parseFloat(item.carbs) || 0,
+          fat: parseFloat(item.fat) || 0,
+          fiber: parseFloat(item.fiber) || 0,
+          sugar: parseFloat(item.sugar) || 0,
+          sodium: 0, 
+          cholesterol: 0,
         },
         servingSizes: [
           {
             id: '1',
-            name: '100g',
-            weight: 100,
-            unit: 'g',
-          },
-          {
-            id: '2',
-            name: '1 serving',
-            weight: response.servingSize || 100,
+            name: item.serving_size || '1 serving',
+            weight: 100, // Defaulting to 100g, adjust as needed
             unit: 'g',
           },
         ],
@@ -275,23 +292,22 @@ export class FoodInputService {
       return {
         success: true,
         foodItem,
-        confidence: response.confidence || 0.8,
+        confidence: 0.9, // Defaulting confidence
       };
     } catch (error) {
+      console.error('Response parsing error:', error);
       return { success: false, error: `Response parsing error: ${error}` };
     }
   }
 
   private async imageToBase64(uri: string): Promise<string> {
-    // Implementation to convert image to base64
-    // This is a placeholder - you'll need to implement actual conversion
-    return 'base64_placeholder';
+    // This is a placeholder
+    return 'base64_placeholder_string';
   }
 
   private async audioToBase64(uri: string): Promise<string> {
-    // Implementation to convert audio to base64
-    // This is a placeholder - you'll need to implement actual conversion
-    return 'base64_placeholder';
+    // This is a placeholder
+    return 'base64_placeholder_string';
   }
 
   // Utility methods

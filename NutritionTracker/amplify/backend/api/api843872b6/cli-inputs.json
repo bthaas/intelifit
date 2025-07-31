@@ -5,10 +5,7 @@
       "name": "/transcribe",
       "lambdaFunction": "processV",
       "permissions": {
-        "setting": "private",
-        "auth": [
-          "create"
-        ]
+        "setting": "open"
       }
     }
   }

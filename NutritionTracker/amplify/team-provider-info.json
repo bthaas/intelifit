@@ -15,11 +15,11 @@
     "categories": {
       "function": {
         "processV": {
-          "cognitoClientId": "7tv7qthj4qnjqoss49rsh1qemd",
-          "cognitoUserPoolId": "us-east-1_5AQYHXBd0",
           "secretsPathAmplifyAppId": "dfgjunh0q9phv",
           "deploymentBucketName": "amplify-tthree-dev-025e2-deployment",
-          "s3Key": "amplify-builds/processV-306475704652676c6455-build.zip"
+          "s3Key": "amplify-builds/processV-306475704652676c6455-build.zip",
+          "cognitoClientId": "7tv7qthj4qnjqoss49rsh1qemd",
+          "cognitoUserPoolId": "us-east-1_5AQYHXBd0"
         },
         "authHandler": {
           "deploymentBucketName": "amplify-tthree-dev-025e2-deployment",

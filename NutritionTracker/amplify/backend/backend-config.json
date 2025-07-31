@@ -1,5 +1,17 @@
 {
   "api": {
+    "api843872b6": {
+      "dependsOn": [
+        {
+          "attributes": [
+            "Name",
+            "Arn"
+          ],
+          "category": "function",
+          "resourceName": "processV"
+        }
+      ]
+    },
     "foodTranscriptionAPI": {
       "dependsOn": [
         {

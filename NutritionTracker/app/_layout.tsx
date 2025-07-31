@@ -3,8 +3,12 @@ import { Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { Amplify } from 'aws-amplify';
+import awsmobile from '../src/aws-exports';
 
 import { useUserStore } from '../src/stores';
+
+Amplify.configure(awsmobile);
 
 export {
   // Catch any errors thrown by the Layout component.
