@@ -50,7 +50,8 @@
           "photosPermission": "This app needs access to your photo library to let you select images for food tracking.",
           "cameraPermission": "This app needs access to your camera to let you take photos of food for tracking."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

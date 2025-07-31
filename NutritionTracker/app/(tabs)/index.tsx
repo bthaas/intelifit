@@ -16,7 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { useAppTheme } from '../../src/components/ui/ThemeProvider';
 import { useNutritionStore } from '../../src/stores';
 import { FoodItem, ConsumedFood, MealType } from '../../src/types';
-import { foodInputService, MediaTypeOptions } from '../../src/services/foodInput';
+import { foodInputService } from '../../src/services/foodInput';
 
 const INPUT_MODES = [
   { key: 'voice', label: 'Voice', icon: 'microphone' },
