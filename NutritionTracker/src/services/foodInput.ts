@@ -40,9 +40,10 @@ export class FoodInputService {
         return { success: false, error: 'Camera permission denied' };
       }
 
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: 'Images' as any,
+                              const result = await ImagePicker.launchCameraAsync({
         quality: 0.8,
+        allowsEditing: true,
+        aspect: [4, 3],
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
@@ -63,9 +64,10 @@ export class FoodInputService {
         return { success: false, error: 'Gallery permission denied' };
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: 'Images' as any,
+                              const result = await ImagePicker.launchImageLibraryAsync({
         quality: 0.8,
+        allowsEditing: true,
+        aspect: [4, 3],
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
@@ -241,8 +243,8 @@ export class FoodInputService {
       return responseBody;
     } catch (error) {
         console.error('Lambda API error:', error);
-        if (error.response) {
-            const errorBody = await error.response.body.json();
+        if (error && typeof error === 'object' && 'response' in error) {
+            const errorBody = await (error as any).response.body.json();
             console.error('Lambda error details:', errorBody);
             return { success: false, error: 'Lambda API call failed', details: errorBody };
         }
@@ -264,7 +266,7 @@ export class FoodInputService {
         name: item.name || 'Unknown Food',
         brand: item.brand || null,
         category: item.category || 'other',
-        barcode: null,
+        barcode: undefined,
         imageUrl: undefined,
         isCustom: true,
         nutritionPer100g: {
