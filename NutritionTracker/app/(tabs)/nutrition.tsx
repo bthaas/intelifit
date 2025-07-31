@@ -148,6 +148,31 @@ const MealSection: React.FC<MealSectionProps> = ({
   );
 };
 
+import Svg, { Circle } from 'react-native-svg';
+
+const ProgressCircle = ({ progress, size, strokeWidth, color }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - progress * circumference;
+
+  return (
+    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <Circle
+        stroke={color}
+        fill="none"
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        strokeWidth={strokeWidth}
+        strokeDasharray={circumference}
+        strokeDashoffset={strokeDashoffset}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      />
+    </Svg>
+  );
+};
+
 interface NutrientCardProps {
   label: string;
   current: number;
@@ -459,8 +484,24 @@ export default function NutritionScreen() {
           </View>
 
           {/* Calorie progress ring */}
-          <View style={styles.progressRingContainer}>
-            <View style={[styles.progressRing, { borderColor: theme.border }]}>
+                    <View style={styles.progressRingContainer}>
+            <View style={[styles.progressRing, { borderColor: theme.border, justifyContent: 'center', alignItems: 'center' }]}>
+              <Svg width={120} height={120} viewBox="0 0 120 120" style={{ position: 'absolute' }}>
+                <Circle
+                  stroke={theme.border}
+                  fill="none"
+                  cx={60}
+                  cy={60}
+                  r={56}
+                  strokeWidth={8}
+                />
+              </Svg>
+              <ProgressCircle
+                progress={totalNutrition.calories / calorieGoal}
+                size={120}
+                strokeWidth={8}
+                color={theme.primary}
+              />
               <View style={styles.progressRingInner}>
                 <Text style={[styles.progressRingCalories, { color: theme.text }]}>
                   {Math.round(totalNutrition.calories)}
@@ -768,8 +809,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  progressRingInner: {
+    progressRingInner: {
     alignItems: 'center',
+    position: 'absolute',
   },
   progressRingCalories: {
     fontSize: 24,
