@@ -32,7 +32,7 @@ const PHOTO_OPTIONS = [
 
 export default function AddFoodScreen() {
   const theme = useAppTheme();
-  const { addFoodEntry, addToRecent, recentFoods, favorites, addToFavorites } = useNutritionStore();
+  const { addFoodEntry, addToRecent, recentFoods, favorites, addToFavorites, removeFromFavorites } = useNutritionStore();
 
   const [inputMode, setInputMode] = useState<'voice' | 'photo' | 'text'>('voice');
   const [photoOption, setPhotoOption] = useState<'camera' | 'gallery' | 'barcode'>('camera');
@@ -186,6 +186,24 @@ export default function AddFoodScreen() {
     } catch (error) {
       Alert.alert('Error', 'Failed to add food');
     }
+  };
+
+    const handleRemoveFavorite = (food: FoodItem) => {
+    Alert.alert(
+      "Remove Favorite",
+      `Are you sure you want to remove ${food.name} from your favorites?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: () => {
+            removeFromFavorites(food.id);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          },
+        },
+      ]
+    );
   };
 
   // --- UI ---
@@ -449,6 +467,7 @@ export default function AddFoodScreen() {
                   key={item.id}
                   style={[styles.quickAddButton, { backgroundColor: theme.surface }]}
                   onPress={() => setSelectedFood(item)}
+                  onLongPress={() => handleRemoveFavorite(item)}
                 >
                   <FontAwesome name="heart" size={16} color={theme.primary} />
                   <Text style={[styles.quickAddText, { color: theme.text }]}>
